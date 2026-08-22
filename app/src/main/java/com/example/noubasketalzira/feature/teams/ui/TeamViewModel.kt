@@ -24,6 +24,12 @@ class TeamViewModel(
             initialValue = emptyList()
         )
 
+    init {
+        viewModelScope.launch {
+            teamRepository.syncTeams()
+        }
+    }
+
     private fun hasManagementRole(): Boolean {
         val user = sessionManager.currentUser.value
         return user?.role == UserRole.GERENCIA || user?.role == UserRole.DIRECTOR_DEPORTIVO

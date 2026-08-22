@@ -92,4 +92,9 @@ dependencies {
   // Koin
   implementation(libs.koin.android)
   implementation(libs.koin.androidx.compose)
+
+  // Supabase
+  implementation(libs.supabase.postgrest)
+  implementation(libs.supabase.auth)
+  implementation(libs.ktor.client.cio)
 }
