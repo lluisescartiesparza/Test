@@ -27,7 +27,9 @@ fun MainNavigation() {
         }
         
         composable("teams") {
-            // Provisional empty route for "Dirección Deportiva (Equipos)"
+            com.example.noubasketalzira.feature.teams.ui.TeamScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
         
         composable("events") {

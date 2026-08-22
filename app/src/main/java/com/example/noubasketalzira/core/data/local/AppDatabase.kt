@@ -8,6 +8,9 @@ import com.example.noubasketalzira.core.data.local.entity.TeamEntity
 import com.example.noubasketalzira.core.data.local.entity.TeamMemberEntity
 import com.example.noubasketalzira.core.data.local.entity.UserEntity
 
+import com.example.noubasketalzira.core.data.local.dao.TeamDao
+import com.example.noubasketalzira.core.data.local.dao.TeamMemberDao
+
 @Database(
     entities = [
         UserEntity::class,
@@ -20,6 +23,6 @@ import com.example.noubasketalzira.core.data.local.entity.UserEntity
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
-    // abstract fun userDao(): UserDao
-    // ... we can add DAOs later
+    abstract fun teamDao(): TeamDao
+    abstract fun teamMemberDao(): TeamMemberDao
 }
