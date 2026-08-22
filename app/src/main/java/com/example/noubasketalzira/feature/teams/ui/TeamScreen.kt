@@ -26,6 +26,7 @@ fun TeamScreen(
     var showCreateDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     var newTeamName by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
     var newTeamCategory by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    var teamToDelete by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<com.example.noubasketalzira.feature.teams.domain.model.Team?>(null) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -87,7 +88,7 @@ fun TeamScreen(
                                     Text("Asignar Entrenador")
                                 }
                                 Button(
-                                    onClick = { viewModel.deleteTeam(team) },
+                                    onClick = { teamToDelete = team },
                                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                 ) {
                                     Text("Borrar")
@@ -133,6 +134,30 @@ fun TeamScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showCreateDialog = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        teamToDelete?.let { team ->
+            AlertDialog(
+                onDismissRequest = { teamToDelete = null },
+                title = { Text("Confirmar borrado") },
+                text = { Text("¿Seguro que deseas eliminar este equipo?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteTeam(team)
+                            teamToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Eliminar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { teamToDelete = null }) {
                         Text("Cancelar")
                     }
                 }

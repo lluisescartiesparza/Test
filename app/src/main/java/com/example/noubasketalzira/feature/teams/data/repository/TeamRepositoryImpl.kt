@@ -1,10 +1,18 @@
 package com.example.noubasketalzira.feature.teams.data.repository
 
+import android.content.Context
+import android.util.Log
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.example.noubasketalzira.core.data.local.dao.TeamDao
 import com.example.noubasketalzira.core.data.local.dao.TeamMemberDao
 import com.example.noubasketalzira.core.data.local.entity.TeamEntity
 import com.example.noubasketalzira.core.data.local.entity.TeamMemberEntity
 import com.example.noubasketalzira.core.data.local.entity.toDomain
+import com.example.noubasketalzira.feature.teams.data.worker.TeamSyncWorker
 import com.example.noubasketalzira.feature.teams.domain.model.Team
 import com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository
 import com.example.noubasketalzira.core.data.remote.dto.TeamDto
@@ -14,18 +22,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import java.util.UUID
 
 class TeamRepositoryImpl(
     private val teamDao: TeamDao,
     private val teamMemberDao: TeamMemberDao,
-    private val supabase: SupabaseClient
+    private val supabase: SupabaseClient,
+    private val context: Context
 ) : ITeamRepository {
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun observeTeams(): Flow<List<Team>> {
         return teamDao.observeAllTeams().map { entities -> 
@@ -45,19 +49,24 @@ class TeamRepositoryImpl(
             teamDao.insertTeam(newTeam)
         }
         
-        // Background remote sync
-        scope.launch {
-            try {
-                val dto = TeamDto(
-                    id = newId,
-                    name = name,
-                    category = category
-                )
-                supabase.postgrest["teams"].insert(dto)
-            } catch (e: Exception) {
-                // Ignore remote errors for now to keep SSOT offline-first functioning
-            }
-        }
+        // Encolar trabajo offline-first
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+            
+        val data = Data.Builder()
+            .putString(TeamSyncWorker.KEY_ACTION, TeamSyncWorker.ACTION_INSERT)
+            .putString(TeamSyncWorker.KEY_TEAM_ID, newId)
+            .putString(TeamSyncWorker.KEY_TEAM_NAME, name)
+            .putString(TeamSyncWorker.KEY_TEAM_CATEGORY, category)
+            .build()
+            
+        val request = OneTimeWorkRequestBuilder<TeamSyncWorker>()
+            .setConstraints(constraints)
+            .setInputData(data)
+            .build()
+            
+        WorkManager.getInstance(context).enqueue(request)
     }
 
     override suspend fun deleteTeam(teamId: String) {
@@ -65,16 +74,22 @@ class TeamRepositoryImpl(
             teamDao.deleteTeam(teamId)
         }
         
-        // Background remote sync
-        scope.launch {
-            try {
-                supabase.postgrest["teams"].delete {
-                    filter { eq("id", teamId) }
-                }
-            } catch (e: Exception) {
-                // Ignore remote errors
-            }
-        }
+        // Encolar trabajo offline-first
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+            
+        val data = Data.Builder()
+            .putString(TeamSyncWorker.KEY_ACTION, TeamSyncWorker.ACTION_DELETE)
+            .putString(TeamSyncWorker.KEY_TEAM_ID, teamId)
+            .build()
+            
+        val request = OneTimeWorkRequestBuilder<TeamSyncWorker>()
+            .setConstraints(constraints)
+            .setInputData(data)
+            .build()
+            
+        WorkManager.getInstance(context).enqueue(request)
     }
 
     override suspend fun assignMember(teamId: String, userId: String, role: String) {
@@ -105,7 +120,7 @@ class TeamRepositoryImpl(
                     )
                 }
             } catch (e: Exception) {
-                // Ignore remote errors
+                Log.e("SupabaseSync", "Error en red: ${e.message}", e)
             }
         }
     }
