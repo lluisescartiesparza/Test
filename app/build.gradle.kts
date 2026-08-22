@@ -97,4 +97,7 @@ dependencies {
   implementation(libs.supabase.postgrest)
   implementation(libs.supabase.auth)
   implementation(libs.ktor.client.cio)
+
+  // WorkManager
+  implementation(libs.work.runtime.ktx)
 }

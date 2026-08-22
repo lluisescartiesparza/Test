@@ -39,7 +39,7 @@ val appModule = module {
     
     // Repositories
     single<com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository> {
-        com.example.noubasketalzira.feature.teams.data.repository.TeamRepositoryImpl(get(), get(), get())
+        com.example.noubasketalzira.feature.teams.data.repository.TeamRepositoryImpl(get(), get(), get(), androidContext())
     }
     
     // Auth
