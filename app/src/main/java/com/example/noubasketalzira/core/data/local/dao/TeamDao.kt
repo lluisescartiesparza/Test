@@ -16,8 +16,8 @@ interface TeamDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertTeam(team: TeamEntity)
 
-    @Delete
-    fun deleteTeam(team: TeamEntity)
+    @Query("DELETE FROM teams WHERE id = :teamId")
+    fun deleteTeam(teamId: String)
     
     // For assigning a coach/player we would need TeamMemberDao, 
     // but for now we can just add a query if needed or handle it in another DAO.

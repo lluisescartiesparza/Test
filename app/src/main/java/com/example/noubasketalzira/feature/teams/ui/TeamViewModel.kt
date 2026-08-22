@@ -3,8 +3,8 @@ package com.example.noubasketalzira.feature.teams.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.noubasketalzira.core.auth.ISessionManager
-import com.example.noubasketalzira.core.data.local.entity.TeamEntity
-import com.example.noubasketalzira.core.data.local.entity.UserRole
+import com.example.noubasketalzira.core.domain.model.UserRole
+import com.example.noubasketalzira.feature.teams.domain.model.Team
 import com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +17,7 @@ class TeamViewModel(
     private val sessionManager: ISessionManager
 ) : ViewModel() {
 
-    val teams: StateFlow<List<TeamEntity>> = teamRepository.observeTeams()
+    val teams: StateFlow<List<Team>> = teamRepository.observeTeams()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -43,7 +43,7 @@ class TeamViewModel(
         }
     }
 
-    fun deleteTeam(team: TeamEntity) {
+    fun deleteTeam(team: Team) {
         // TODO: En el futuro descomentar esto para bloquear la acción
         /*
         if (!hasManagementRole()) {
@@ -52,7 +52,7 @@ class TeamViewModel(
         */
         
         viewModelScope.launch {
-            teamRepository.deleteTeam(team)
+            teamRepository.deleteTeam(team.id)
         }
     }
 
