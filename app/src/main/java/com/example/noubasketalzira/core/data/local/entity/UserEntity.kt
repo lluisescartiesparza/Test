@@ -2,11 +2,9 @@ package com.example.noubasketalzira.core.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.noubasketalzira.core.domain.model.User
+import com.example.noubasketalzira.core.domain.model.UserRole
 import java.util.UUID
-
-enum class UserRole {
-    GERENCIA, DIRECTOR_DEPORTIVO, ENTRENADOR, JUGADOR
-}
 
 @Entity(tableName = "users")
 data class UserEntity(
@@ -16,3 +14,12 @@ data class UserEntity(
     val role: UserRole,
     val createdAt: Long = System.currentTimeMillis()
 )
+
+fun UserEntity.toDomain(): User {
+    return User(
+        id = id,
+        email = email,
+        fullName = fullName,
+        role = role
+    )
+}
