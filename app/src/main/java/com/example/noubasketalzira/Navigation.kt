@@ -5,23 +5,33 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.ui.NavDisplay
-import com.example.noubasketalzira.ui.main.MainScreen
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.noubasketalzira.feature.welcome.ui.WelcomeScreen
 
 @Composable
 fun MainNavigation() {
-  val backStack = rememberNavBackStack(Main)
+    val navController = rememberNavController()
 
-  NavDisplay(
-    backStack = backStack,
-    onBack = { backStack.removeLastOrNull() },
-    entryProvider =
-      entryProvider {
-        entry<Main> {
-          MainScreen(onItemClick = { navKey -> backStack.add(navKey) }, modifier = Modifier.safeDrawingPadding().padding(16.dp))
+    NavHost(
+        navController = navController,
+        startDestination = "welcome",
+        modifier = Modifier.safeDrawingPadding()
+    ) {
+        composable("welcome") {
+            WelcomeScreen(
+                onNavigateToTeams = { navController.navigate("teams") },
+                onNavigateToEvents = { navController.navigate("events") }
+            )
         }
-      },
-  )
+        
+        composable("teams") {
+            // Provisional empty route for "Dirección Deportiva (Equipos)"
+        }
+        
+        composable("events") {
+            // Provisional empty route for "Gestión de Equipo (Eventos)"
+        }
+    }
 }
