@@ -35,25 +35,16 @@ class AttendanceSyncWorker(
             if (userId != null) {
                 // Sync specific user
                 val attendance = attendances.find { it.userId == userId } ?: return Result.failure()
-                supabase.postgrest["attendance"].update(
-                    AttendanceUpdateDto(status = attendance.status)
-                ) {
-                    filter {
-                        eq("event_id", eventId)
-                        eq("user_id", userId)
-                    }
-                }
+                supabase.postgrest["attendance"].upsert(
+                    AttendanceInsertDto(event_id = eventId, user_id = userId, status = attendance.status)
+                )
             } else {
                 // Sync all users for event
-                for (attendance in attendances) {
-                    supabase.postgrest["attendance"].update(
-                        AttendanceUpdateDto(status = attendance.status)
-                    ) {
-                        filter {
-                            eq("event_id", eventId)
-                            eq("user_id", attendance.userId)
-                        }
-                    }
+                val dtos = attendances.map { 
+                    AttendanceInsertDto(event_id = eventId, user_id = it.userId, status = it.status)
+                }
+                if (dtos.isNotEmpty()) {
+                    supabase.postgrest["attendance"].upsert(dtos)
                 }
             }
             return Result.success()
