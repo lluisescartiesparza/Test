@@ -1,4 +1,4 @@
-package com.example.noubasketalzira.feature.events.data.worker
+package com.example.noubasketalzira.feature.events.framework.android.worker
 
 import android.content.Context
 import androidx.work.CoroutineWorker
@@ -13,8 +13,8 @@ import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class AttendanceUpdateDto(val status: String)
+import com.example.noubasketalzira.feature.events.data.source.remote.dto.AttendanceInsertDto
+import com.example.noubasketalzira.feature.events.data.source.remote.dto.AttendanceUpdateDto
 
 class AttendanceSyncWorker(
     appContext: Context,

@@ -1,4 +1,4 @@
-package com.example.noubasketalzira.feature.events.data.worker
+package com.example.noubasketalzira.feature.events.framework.android.worker
 
 import android.content.Context
 import androidx.work.CoroutineWorker
@@ -14,10 +14,8 @@ import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class EventInsertDto(val id: String, val team_id: String, val type: String, val date: String, val description: String?)
-@Serializable
-data class AttendanceInsertDto(val event_id: String, val user_id: String, val status: String)
+import com.example.noubasketalzira.feature.events.data.source.remote.dto.AttendanceInsertDto
+import com.example.noubasketalzira.feature.events.data.source.remote.dto.EventInsertDto
 
 class EventSyncWorker(
     appContext: Context,
@@ -29,19 +27,28 @@ class EventSyncWorker(
     private val attendanceDao: AttendanceDao by inject()
 
     override suspend fun doWork(): Result {
-        val eventId = inputData.getString("eventId") ?: return Result.failure()
+        val eventId = inputData.getString("eventId")
+        if (eventId == null) {
+            Log.e("EventSyncWorker", "EventId is null in inputData!")
+            return Result.failure()
+        }
         val action = inputData.getString("action") ?: "INSERT_EVENT"
 
         try {
-            if (action == "DELETE_EVENT") {
+            if (action == "delete") {
                 supabase.postgrest["events"].delete {
                     filter { eq("id", eventId) }
                 }
                 return Result.success()
             }
 
-            // For INSERT_EVENT
-            val event = eventDao.getEventById(eventId) ?: return Result.failure()
+            // For INSERT_EVENT (or "insert")
+            val event = eventDao.getEventById(eventId)
+            if (event == null) {
+                Log.e("EventSyncWorker", "Event not found in Room for ID: $eventId")
+                return Result.failure()
+            }
+            
             val attendancesFlow = attendanceDao.observeAllTeamAttendances(eventId)
             val attendances = attendancesFlow.first()
 

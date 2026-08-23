@@ -1,4 +1,4 @@
-package com.example.noubasketalzira.core.data.worker
+package com.example.noubasketalzira.core.framework.android.worker
 
 import android.content.Context
 import androidx.work.Constraints
@@ -7,9 +7,9 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.noubasketalzira.core.domain.scheduler.ISyncScheduler
-import com.example.noubasketalzira.feature.events.data.worker.AttendanceSyncWorker
-import com.example.noubasketalzira.feature.events.data.worker.EventSyncWorker
-import com.example.noubasketalzira.feature.teams.data.worker.TeamSyncWorker
+import com.example.noubasketalzira.feature.events.framework.android.worker.AttendanceSyncWorker
+import com.example.noubasketalzira.feature.events.framework.android.worker.EventSyncWorker
+import com.example.noubasketalzira.feature.teams.framework.android.worker.TeamSyncWorker
 
 class AndroidSyncScheduler(private val context: Context) : ISyncScheduler {
 

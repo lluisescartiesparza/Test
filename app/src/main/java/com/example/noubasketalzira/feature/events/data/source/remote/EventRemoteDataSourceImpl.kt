@@ -1,7 +1,7 @@
 package com.example.noubasketalzira.feature.events.data.source.remote
 
-import com.example.noubasketalzira.feature.events.data.worker.AttendanceInsertDto
-import com.example.noubasketalzira.feature.events.data.worker.EventInsertDto
+import com.example.noubasketalzira.feature.events.data.source.remote.dto.AttendanceInsertDto
+import com.example.noubasketalzira.feature.events.data.source.remote.dto.EventInsertDto
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
 
