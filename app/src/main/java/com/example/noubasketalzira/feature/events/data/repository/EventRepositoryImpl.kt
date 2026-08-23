@@ -50,9 +50,13 @@ class EventRepositoryImpl(
         )
 
         withContext(Dispatchers.IO) {
+            val playerIds = localDataSource.getPlayersForTeam(teamId)
+            if (playerIds.isEmpty()) {
+                throw IllegalStateException("El equipo no tiene jugadores. No se puede crear un evento.")
+            }
+
             localDataSource.insertEvent(newEvent)
             
-            val playerIds = localDataSource.getPlayersForTeam(teamId)
             val attendances = playerIds.map { userId ->
                 Attendance(
                     eventId = newEventId,

@@ -44,7 +44,11 @@ class EventListViewModel(
 
     fun createEvent(type: EventType, date: Long, description: String) {
         viewModelScope.launch {
-            repository.createEvent(teamId, type, date, description)
+            try {
+                repository.createEvent(teamId, type, date, description)
+            } catch (e: Exception) {
+                // Ignore or handle
+            }
         }
     }
 

@@ -1,6 +1,5 @@
 package com.example.noubasketalzira.feature.events.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.koin.androidx.compose.koinViewModel
+import com.example.noubasketalzira.core.ui.debouncedClickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,7 +32,7 @@ fun EventTeamSelectionScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp)
-                            .clickable { onTeamSelected(team.id) }
+                            .debouncedClickable { onTeamSelected(team.id) }
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(text = team.name, style = MaterialTheme.typography.titleMedium)
