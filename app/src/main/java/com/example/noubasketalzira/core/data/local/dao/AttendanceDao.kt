@@ -41,6 +41,7 @@ interface AttendanceDao {
         JOIN users u ON tm.userId = u.id
         LEFT JOIN attendance a ON a.userId = u.id AND a.eventId = :eventId
         WHERE tm.teamId = (SELECT teamId FROM events WHERE id = :eventId)
+          AND tm.role = 'JUGADOR'
     """)
     fun observeAllTeamAttendances(eventId: String): Flow<List<AttendanceWithUser>>
 }
