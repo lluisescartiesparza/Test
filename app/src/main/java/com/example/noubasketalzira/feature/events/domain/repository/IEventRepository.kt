@@ -15,4 +15,5 @@ interface IEventRepository {
     suspend fun updateAttendanceStatus(eventId: String, userId: String, status: AttendanceStatus)
     suspend fun markAllAs(eventId: String, status: AttendanceStatus)
     suspend fun syncEvents(teamId: String)
+    suspend fun hasPlayers(teamId: String): Boolean
 }

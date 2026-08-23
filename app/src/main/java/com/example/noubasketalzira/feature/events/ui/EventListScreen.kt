@@ -40,7 +40,13 @@ fun EventListScreen(
         topBar = { TopAppBar(title = { Text("Eventos del Equipo") }) },
         floatingActionButton = {
             if (uiState.canManageEvents) {
-                FloatingActionButton(onClick = { showCreateDialog = true }) {
+                FloatingActionButton(onClick = { 
+                    if (!uiState.hasPlayers) {
+                        viewModel.createEvent(EventType.ENTRENAMIENTO, 0, "") // Will trigger error
+                    } else {
+                        showCreateDialog = true 
+                    }
+                }) {
                     Text("+")
                 }
             }
@@ -109,6 +115,17 @@ fun EventListScreen(
             onCreate = { type, date, desc -> 
                 viewModel.createEvent(type, date, desc)
                 showCreateDialog = false
+            }
+        )
+    }
+
+    if (uiState.error != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissError() },
+            title = { Text("Aviso") },
+            text = { Text(uiState.error ?: "") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissError() }) { Text("OK") }
             }
         )
     }

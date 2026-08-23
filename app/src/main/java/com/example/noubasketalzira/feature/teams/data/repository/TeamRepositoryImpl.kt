@@ -34,14 +34,14 @@ class TeamRepositoryImpl(
             localDataSource.insertTeam(newTeam)
         }
         
-        syncScheduler.scheduleTeamSync("INSERT_EVENT", newId, name, category)
+        syncScheduler.scheduleTeamSync("insert", newId, name, category)
     }
 
     override suspend fun deleteTeam(teamId: String) {
         withContext(Dispatchers.IO) {
             localDataSource.deleteTeam(teamId)
         }
-        syncScheduler.scheduleTeamSync("DELETE_EVENT", teamId)
+        syncScheduler.scheduleTeamSync("delete", teamId)
     }
 
     override suspend fun assignMember(teamId: String, userId: String, role: com.example.noubasketalzira.feature.teams.domain.model.TeamRole) {

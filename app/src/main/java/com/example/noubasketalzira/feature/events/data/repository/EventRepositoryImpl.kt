@@ -137,4 +137,10 @@ class EventRepositoryImpl(
             }
         }
     }
+
+    override suspend fun hasPlayers(teamId: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            localDataSource.getPlayersForTeam(teamId).isNotEmpty()
+        }
+    }
 }
