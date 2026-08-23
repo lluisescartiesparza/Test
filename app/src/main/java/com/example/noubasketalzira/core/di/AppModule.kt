@@ -14,6 +14,25 @@ import org.koin.dsl.module
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.module.Module
 
+import com.example.noubasketalzira.core.domain.util.IDateFormatter
+import com.example.noubasketalzira.core.domain.util.IIdGenerator
+import com.example.noubasketalzira.core.framework.android.util.AndroidDateFormatter
+import com.example.noubasketalzira.core.framework.android.util.AndroidIdGenerator
+import com.example.noubasketalzira.core.framework.android.worker.AndroidSyncScheduler
+import com.example.noubasketalzira.core.domain.scheduler.ISyncScheduler
+import com.example.noubasketalzira.feature.events.data.repository.EventRepositoryImpl
+import com.example.noubasketalzira.feature.events.data.source.local.EventLocalDataSourceImpl
+import com.example.noubasketalzira.feature.events.data.source.local.IEventLocalDataSource
+import com.example.noubasketalzira.feature.events.data.source.remote.EventRemoteDataSourceImpl
+import com.example.noubasketalzira.feature.events.data.source.remote.IEventRemoteDataSource
+import com.example.noubasketalzira.feature.events.domain.repository.IEventRepository
+import com.example.noubasketalzira.feature.teams.data.repository.TeamRepositoryImpl
+import com.example.noubasketalzira.feature.teams.data.source.local.ITeamLocalDataSource
+import com.example.noubasketalzira.feature.teams.data.source.local.TeamLocalDataSourceImpl
+import com.example.noubasketalzira.feature.teams.data.source.remote.ITeamRemoteDataSource
+import com.example.noubasketalzira.feature.teams.data.source.remote.TeamRemoteDataSourceImpl
+import com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository
+
 val appModule = module {
     // Supabase Client
     single<SupabaseClient> {
@@ -40,33 +59,37 @@ val appModule = module {
     single { get<AppDatabase>().eventDao() }
     single { get<AppDatabase>().attendanceDao() }
     
+    // Utilities
+    single<IIdGenerator> { AndroidIdGenerator() }
+    single<IDateFormatter> { AndroidDateFormatter() }
+
     // Scheduler
-    single<com.example.noubasketalzira.core.domain.scheduler.ISyncScheduler> {
-        com.example.noubasketalzira.core.data.worker.AndroidSyncScheduler(androidContext())
+    single<ISyncScheduler> {
+        AndroidSyncScheduler(androidContext())
     }
     
     // Data Sources
-    single<com.example.noubasketalzira.feature.teams.data.source.local.ITeamLocalDataSource> {
-        com.example.noubasketalzira.feature.teams.data.source.local.TeamLocalDataSourceImpl(get(), get(), get())
+    single<ITeamLocalDataSource> {
+        TeamLocalDataSourceImpl(get(), get(), get())
     }
-    single<com.example.noubasketalzira.feature.teams.data.source.remote.ITeamRemoteDataSource> {
-        com.example.noubasketalzira.feature.teams.data.source.remote.TeamRemoteDataSourceImpl(get())
+    single<ITeamRemoteDataSource> {
+        TeamRemoteDataSourceImpl(get())
     }
     
-    single<com.example.noubasketalzira.feature.events.data.source.local.IEventLocalDataSource> {
-        com.example.noubasketalzira.feature.events.data.source.local.EventLocalDataSourceImpl(get(), get(), get(), get())
+    single<IEventLocalDataSource> {
+        EventLocalDataSourceImpl(get(), get(), get(), get())
     }
-    single<com.example.noubasketalzira.feature.events.data.source.remote.IEventRemoteDataSource> {
-        com.example.noubasketalzira.feature.events.data.source.remote.EventRemoteDataSourceImpl(get())
+    single<IEventRemoteDataSource> {
+        EventRemoteDataSourceImpl(get())
     }
     
     // Repositories
-    single<com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository> {
-        com.example.noubasketalzira.feature.teams.data.repository.TeamRepositoryImpl(get(), get(), get())
+    single<ITeamRepository> {
+        TeamRepositoryImpl(get(), get(), get(), get())
     }
     
-    single<com.example.noubasketalzira.feature.events.domain.repository.IEventRepository> {
-        com.example.noubasketalzira.feature.events.data.repository.EventRepositoryImpl(get(), get(), get())
+    single<IEventRepository> {
+        EventRepositoryImpl(get(), get(), get(), get(), get())
     }
     
     // Auth
@@ -74,7 +97,7 @@ val appModule = module {
     
     // ViewModels
     viewModel {
-        com.example.noubasketalzira.feature.teams.ui.TeamViewModel(get(), get())
+        com.example.noubasketalzira.feature.teams.ui.TeamViewModel(get(), get(), get())
     }
     viewModel {
         com.example.noubasketalzira.feature.events.ui.EventTeamSelectionViewModel(get(), get(), get(), get())

@@ -1,4 +1,4 @@
-package com.example.noubasketalzira.feature.events.data.worker
+package com.example.noubasketalzira.feature.events.framework.android.worker
 
 import android.content.Context
 import androidx.work.CoroutineWorker
@@ -14,10 +14,8 @@ import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class EventInsertDto(val id: String, val team_id: String, val type: String, val date: String, val description: String?)
-@Serializable
-data class AttendanceInsertDto(val event_id: String, val user_id: String, val status: String)
+import com.example.noubasketalzira.feature.events.data.source.remote.dto.AttendanceInsertDto
+import com.example.noubasketalzira.feature.events.data.source.remote.dto.EventInsertDto
 
 class EventSyncWorker(
     appContext: Context,

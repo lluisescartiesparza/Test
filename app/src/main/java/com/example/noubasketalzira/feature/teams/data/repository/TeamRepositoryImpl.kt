@@ -1,21 +1,20 @@
 package com.example.noubasketalzira.feature.teams.data.repository
 
-import com.example.noubasketalzira.feature.teams.domain.model.Team
-import com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.util.UUID
-
 import com.example.noubasketalzira.core.domain.scheduler.ISyncScheduler
+import com.example.noubasketalzira.core.domain.util.IIdGenerator
 import com.example.noubasketalzira.feature.teams.data.source.local.ITeamLocalDataSource
 import com.example.noubasketalzira.feature.teams.data.source.remote.ITeamRemoteDataSource
+import com.example.noubasketalzira.feature.teams.domain.model.Team
+import com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 
 class TeamRepositoryImpl(
     private val localDataSource: ITeamLocalDataSource,
     private val remoteDataSource: ITeamRemoteDataSource,
-    private val syncScheduler: ISyncScheduler
+    private val syncScheduler: ISyncScheduler,
+    private val idGenerator: IIdGenerator
 ) : ITeamRepository {
 
     override fun observeTeams(): Flow<List<Team>> {
@@ -23,8 +22,7 @@ class TeamRepositoryImpl(
     }
 
     override suspend fun createTeam(name: String, category: String) {
-        // Here we still use UUID but we can replace it later if needed for KMP (e.g. uuid library)
-        val newId = UUID.randomUUID().toString()
+        val newId = idGenerator.generateUniqueId()
         val newTeam = Team(
             id = newId,
             name = name,
@@ -72,8 +70,7 @@ class TeamRepositoryImpl(
                     localDataSource.insertTeamMember(dto.teamId, dto.userId, dto.role)
                 }
             } catch (e: Exception) {
-                // Should avoid android Log in domain/data if pure KMP, but let's just println or ignore for now to remove android.*
-                println("Sync failed: ${e.message}")
+                // Ignore sync errors for offline first
             }
         }
     }
