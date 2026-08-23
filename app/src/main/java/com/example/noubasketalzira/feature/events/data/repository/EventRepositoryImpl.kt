@@ -26,12 +26,16 @@ import java.util.UUID
 
 import kotlinx.coroutines.flow.flowOn
 
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
+
 class EventRepositoryImpl(
     private val eventDao: EventDao,
     private val attendanceDao: AttendanceDao,
     private val teamMemberDao: TeamMemberDao,
     private val userDao: UserDao,
-    private val context: Context
+    private val context: Context,
+    private val supabase: SupabaseClient
 ) : IEventRepository {
 
     override fun observeEvents(teamId: String): Flow<List<Event>> {
@@ -151,5 +155,46 @@ class EventRepositoryImpl(
             .build()
             
         WorkManager.getInstance(context).enqueue(request)
+    }
+
+    override suspend fun syncEvents(teamId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                // Fetch events
+                val remoteEvents = supabase.postgrest["events"]
+                    .select { filter { eq("team_id", teamId) } }
+                    .decodeList<com.example.noubasketalzira.feature.events.data.worker.EventInsertDto>()
+                
+                remoteEvents.forEach { dto ->
+                    eventDao.insertEvent(EventEntity(
+                        id = dto.id,
+                        teamId = dto.team_id,
+                        type = EventType.valueOf(dto.type),
+                        date = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.getDefault()).parse(dto.date)?.time ?: System.currentTimeMillis(),
+                        description = dto.description,
+                        createdAt = System.currentTimeMillis()
+                    ))
+                    
+                    // Fetch attendance for this event
+                    val remoteAtt = supabase.postgrest["attendance"]
+                        .select { filter { eq("event_id", dto.id) } }
+                        .decodeList<com.example.noubasketalzira.feature.events.data.worker.AttendanceInsertDto>()
+                    
+                    val attEntities = remoteAtt.map { att ->
+                        AttendanceEntity(
+                            eventId = att.event_id,
+                            userId = att.user_id,
+                            status = att.status,
+                            createdAt = System.currentTimeMillis()
+                        )
+                    }
+                    if (attEntities.isNotEmpty()) {
+                        attendanceDao.insertAttendances(attEntities)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("EventRepositoryImpl", "Sync events failed", e)
+            }
+        }
     }
 }

@@ -8,7 +8,7 @@ import com.example.noubasketalzira.core.data.local.entity.UserEntity
 
 @Dao
 interface UserDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     fun insertUser(user: UserEntity)
 
     @Query("SELECT * FROM users WHERE id = :userId")

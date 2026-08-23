@@ -36,6 +36,10 @@ class EventListViewModel(
                 _uiState.update { it.copy(events = events) }
             }
         }
+        
+        viewModelScope.launch {
+            repository.syncEvents(teamId)
+        }
     }
 
     fun createEvent(type: EventType, date: Long, description: String) {

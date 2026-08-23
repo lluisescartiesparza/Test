@@ -7,7 +7,7 @@ import com.example.noubasketalzira.core.data.local.entity.TeamMemberEntity
 
 @Dao
 interface TeamMemberDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     fun insertTeamMember(member: TeamMemberEntity)
 
     @androidx.room.Query("SELECT * FROM team_members WHERE teamId = :teamId AND role = :role")

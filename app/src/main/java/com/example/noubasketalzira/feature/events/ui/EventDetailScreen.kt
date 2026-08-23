@@ -76,8 +76,8 @@ fun EventDetailScreen(
                                 )
                             }
                             if (uiState.canManage) {
-                                IconButton(onClick = { viewModel.removePlayer(attendance) }) {
-                                    Text("X")
+                                TextButton(onClick = { viewModel.removePlayer(attendance) }) {
+                                    Text("Desconvocar", color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
