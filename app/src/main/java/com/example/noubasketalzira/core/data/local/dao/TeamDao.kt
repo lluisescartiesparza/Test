@@ -13,7 +13,7 @@ interface TeamDao {
     @Query("SELECT * FROM teams ORDER BY name ASC")
     fun observeAllTeams(): Flow<List<TeamEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     fun insertTeam(team: TeamEntity)
 
     @Query("DELETE FROM teams WHERE id = :teamId")

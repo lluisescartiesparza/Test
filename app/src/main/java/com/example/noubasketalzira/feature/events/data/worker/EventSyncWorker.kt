@@ -7,21 +7,67 @@ import io.github.jan.supabase.SupabaseClient
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
+import android.util.Log
+import com.example.noubasketalzira.core.data.local.dao.AttendanceDao
+import com.example.noubasketalzira.core.data.local.dao.EventDao
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class EventInsertDto(val id: String, val team_id: String, val type: String, val date: String, val description: String?)
+@Serializable
+data class AttendanceInsertDto(val event_id: String, val user_id: String, val status: String)
+
 class EventSyncWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams), KoinComponent {
 
     private val supabase: SupabaseClient by inject()
+    private val eventDao: EventDao by inject()
+    private val attendanceDao: AttendanceDao by inject()
 
     override suspend fun doWork(): Result {
         val eventId = inputData.getString("eventId") ?: return Result.failure()
-        
-        // In a real implementation we would:
-        // 1. Fetch EventEntity from Room using EventDao
-        // 2. Post to Supabase postgrest["events"].insert(...)
-        // 3. Post related Attendance records to Supabase postgrest["attendance"].insert(...)
+        val action = inputData.getString("action") ?: "INSERT_EVENT"
 
-        return Result.success()
+        try {
+            if (action == "DELETE_EVENT") {
+                supabase.postgrest["events"].delete {
+                    filter { eq("id", eventId) }
+                }
+                return Result.success()
+            }
+
+            // For INSERT_EVENT
+            val event = eventDao.getEventById(eventId) ?: return Result.failure()
+            val attendancesFlow = attendanceDao.observeAttendanceByEvent(eventId)
+            // Wait, observe returns Flow, we need a one-shot query. Let's get it by first() or add a get query.
+            // But wait, attendanceDao doesn't have getAttendancesByEvent.
+            // For now, just flow first
+            val attendances = attendancesFlow.first()
+
+            val eventDto = EventInsertDto(
+                id = event.id,
+                team_id = event.teamId,
+                type = event.type.name,
+                date = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.getDefault()).format(java.util.Date(event.date)),
+                description = event.description
+            )
+
+            supabase.postgrest["events"].insert(eventDto)
+            
+            val attDtos = attendances.map { 
+                AttendanceInsertDto(event_id = it.eventId, user_id = it.userId, status = it.status) 
+            }
+            if (attDtos.isNotEmpty()) {
+                supabase.postgrest["attendance"].insert(attDtos)
+            }
+            return Result.success()
+        } catch (e: Exception) {
+            Log.e("EventSyncWorker", "Sync failed", e)
+            return Result.retry()
+        }
     }
 }

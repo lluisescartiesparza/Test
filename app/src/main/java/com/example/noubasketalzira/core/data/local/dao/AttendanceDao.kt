@@ -9,10 +9,10 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AttendanceDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     fun insertAttendance(attendance: AttendanceEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     fun insertAttendances(attendances: List<AttendanceEntity>)
 
     @Query("SELECT * FROM attendance WHERE eventId = :eventId")

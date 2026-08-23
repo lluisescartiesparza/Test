@@ -4,5 +4,6 @@ enum class AttendanceStatus {
     NO_CONVOCADO,
     NO_ASISTENCIA,
     ASISTENCIA,
-    JUSTIFICADA
+    JUSTIFICADA,
+    RETRASO
 }

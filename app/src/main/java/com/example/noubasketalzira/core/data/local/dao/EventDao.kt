@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface EventDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @androidx.room.Upsert
     fun insertEvent(event: EventEntity)
 
     @Query("SELECT * FROM events WHERE teamId = :teamId ORDER BY date DESC")
@@ -17,4 +17,7 @@ interface EventDao {
 
     @Query("SELECT * FROM events WHERE id = :eventId")
     fun getEventById(eventId: String): EventEntity?
+
+    @Query("DELETE FROM events WHERE id = :eventId")
+    fun deleteEvent(eventId: String)
 }

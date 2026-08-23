@@ -72,7 +72,8 @@ class EventDetailViewModel(
     fun rotateStatus(attendance: Attendance) {
         val nextStatus = when (attendance.status) {
             AttendanceStatus.NO_ASISTENCIA -> AttendanceStatus.ASISTENCIA
-            AttendanceStatus.ASISTENCIA -> AttendanceStatus.JUSTIFICADA
+            AttendanceStatus.ASISTENCIA -> AttendanceStatus.RETRASO
+            AttendanceStatus.RETRASO -> AttendanceStatus.JUSTIFICADA
             AttendanceStatus.JUSTIFICADA -> AttendanceStatus.NO_ASISTENCIA
             else -> AttendanceStatus.NO_ASISTENCIA
         }

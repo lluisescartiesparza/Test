@@ -46,7 +46,7 @@ val appModule = module {
     }
     
     single<com.example.noubasketalzira.feature.events.domain.repository.IEventRepository> {
-        com.example.noubasketalzira.feature.events.data.repository.EventRepositoryImpl(get(), get(), get(), get(), androidContext())
+        com.example.noubasketalzira.feature.events.data.repository.EventRepositoryImpl(get(), get(), get(), get(), androidContext(), get())
     }
     
     // Auth

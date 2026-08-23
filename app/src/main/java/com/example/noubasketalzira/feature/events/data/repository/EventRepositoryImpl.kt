@@ -24,22 +24,27 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+import kotlinx.coroutines.flow.flowOn
+
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.postgrest
+
 class EventRepositoryImpl(
     private val eventDao: EventDao,
     private val attendanceDao: AttendanceDao,
     private val teamMemberDao: TeamMemberDao,
     private val userDao: UserDao,
-    private val context: Context
+    private val context: Context,
+    private val supabase: SupabaseClient
 ) : IEventRepository {
 
     override fun observeEvents(teamId: String): Flow<List<Event>> {
         return eventDao.observeEventsByTeam(teamId).map { entities -> 
             entities.map { it.toDomain() } 
-        }
+        }.flowOn(Dispatchers.IO)
     }
 
     override fun observeAttendance(eventId: String): Flow<List<Attendance>> {
-        // This requires joining with users. Since Flow map runs in coroutine, we can fetch user names.
         return attendanceDao.observeAttendanceByEvent(eventId).map { entities ->
             entities.map { entity ->
                 val user = userDao.getUserById(entity.userId)
@@ -50,7 +55,7 @@ class EventRepositoryImpl(
                     status = AttendanceStatus.valueOf(entity.status)
                 )
             }
-        }
+        }.flowOn(Dispatchers.IO)
     }
 
     override suspend fun createEvent(
@@ -70,13 +75,8 @@ class EventRepositoryImpl(
         )
 
         withContext(Dispatchers.IO) {
-            // 1. Insert Event
             eventDao.insertEvent(newEvent)
-
-            // 2. Fetch all JUGADORES in this team
             val jugadores = teamMemberDao.getMembersByTeamIdAndRole(teamId, "JUGADOR")
-
-            // 3. Insert Attendance records
             val attendances = jugadores.map {
                 AttendanceEntity(
                     eventId = newEventId,
@@ -90,11 +90,29 @@ class EventRepositoryImpl(
             }
         }
         
-        // 4. Enqueue Sync
         val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
         val data = Data.Builder()
             .putString("action", "INSERT_EVENT")
             .putString("eventId", newEventId)
+            .build()
+            
+        val request = OneTimeWorkRequestBuilder<com.example.noubasketalzira.feature.events.data.worker.EventSyncWorker>()
+            .setConstraints(constraints)
+            .setInputData(data)
+            .build()
+            
+        WorkManager.getInstance(context).enqueue(request)
+    }
+
+    override suspend fun deleteEvent(eventId: String) {
+        withContext(Dispatchers.IO) {
+            eventDao.deleteEvent(eventId)
+        }
+        
+        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+        val data = Data.Builder()
+            .putString("action", "DELETE_EVENT")
+            .putString("eventId", eventId)
             .build()
             
         val request = OneTimeWorkRequestBuilder<com.example.noubasketalzira.feature.events.data.worker.EventSyncWorker>()
@@ -120,7 +138,7 @@ class EventRepositoryImpl(
         withContext(Dispatchers.IO) {
             attendanceDao.updateAllAttendanceStatus(eventId, status.name)
         }
-        enqueueAttendanceSync(eventId, null) // Null means sync all for event, or we can handle it specifically
+        enqueueAttendanceSync(eventId, null)
     }
     
     private fun enqueueAttendanceSync(eventId: String, userId: String?) {
@@ -137,5 +155,46 @@ class EventRepositoryImpl(
             .build()
             
         WorkManager.getInstance(context).enqueue(request)
+    }
+
+    override suspend fun syncEvents(teamId: String) {
+        withContext(Dispatchers.IO) {
+            try {
+                // Fetch events
+                val remoteEvents = supabase.postgrest["events"]
+                    .select { filter { eq("team_id", teamId) } }
+                    .decodeList<com.example.noubasketalzira.feature.events.data.worker.EventInsertDto>()
+                
+                remoteEvents.forEach { dto ->
+                    eventDao.insertEvent(EventEntity(
+                        id = dto.id,
+                        teamId = dto.team_id,
+                        type = EventType.valueOf(dto.type),
+                        date = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.getDefault()).parse(dto.date)?.time ?: System.currentTimeMillis(),
+                        description = dto.description,
+                        createdAt = System.currentTimeMillis()
+                    ))
+                    
+                    // Fetch attendance for this event
+                    val remoteAtt = supabase.postgrest["attendance"]
+                        .select { filter { eq("event_id", dto.id) } }
+                        .decodeList<com.example.noubasketalzira.feature.events.data.worker.AttendanceInsertDto>()
+                    
+                    val attEntities = remoteAtt.map { att ->
+                        AttendanceEntity(
+                            eventId = att.event_id,
+                            userId = att.user_id,
+                            status = att.status,
+                            createdAt = System.currentTimeMillis()
+                        )
+                    }
+                    if (attEntities.isNotEmpty()) {
+                        attendanceDao.insertAttendances(attEntities)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("EventRepositoryImpl", "Sync events failed", e)
+            }
+        }
     }
 }
