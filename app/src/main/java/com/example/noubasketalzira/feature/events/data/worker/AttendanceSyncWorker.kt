@@ -36,7 +36,7 @@ class AttendanceSyncWorker(
                 // Sync specific user
                 val attendance = attendances.find { it.userId == userId } ?: return Result.failure()
                 supabase.postgrest["attendance"].update(
-                    { AttendanceUpdateDto(status = attendance.status) }
+                    AttendanceUpdateDto(status = attendance.status)
                 ) {
                     filter {
                         eq("event_id", eventId)
@@ -47,7 +47,7 @@ class AttendanceSyncWorker(
                 // Sync all users for event
                 for (attendance in attendances) {
                     supabase.postgrest["attendance"].update(
-                        { AttendanceUpdateDto(status = attendance.status) }
+                        AttendanceUpdateDto(status = attendance.status)
                     ) {
                         filter {
                             eq("event_id", eventId)

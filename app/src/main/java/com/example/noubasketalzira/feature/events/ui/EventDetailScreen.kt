@@ -14,6 +14,8 @@ import com.example.noubasketalzira.feature.events.domain.model.AttendanceStatus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
+import androidx.compose.ui.graphics.Color
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventDetailScreen(
@@ -24,7 +26,7 @@ fun EventDetailScreen(
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Detalle del Evento") }) },
+        topBar = { TopAppBar(title = { Text("Convocatoria") }) },
         floatingActionButton = {
             if (uiState.canManage && uiState.unsummonedPlayers.isNotEmpty()) {
                 FloatingActionButton(onClick = { showAddDialog = true }) {
@@ -45,6 +47,14 @@ fun EventDetailScreen(
 
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(uiState.summonedPlayers) { attendance ->
+                    val statusColor = when (attendance.status) {
+                        AttendanceStatus.ASISTENCIA -> Color(0xFF4CAF50) // Green
+                        AttendanceStatus.NO_ASISTENCIA -> Color(0xFFF44336) // Red
+                        AttendanceStatus.RETRASO -> Color(0xFFFFC107) // Amber/Yellow
+                        AttendanceStatus.JUSTIFICADA -> Color(0xFF9E9E9E) // Grey
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -59,7 +69,11 @@ fun EventDetailScreen(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = attendance.userName, style = MaterialTheme.typography.titleMedium)
-                                Text(text = attendance.status.name, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    text = attendance.status.name, 
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = statusColor
+                                )
                             }
                             if (uiState.canManage) {
                                 IconButton(onClick = { viewModel.removePlayer(attendance) }) {

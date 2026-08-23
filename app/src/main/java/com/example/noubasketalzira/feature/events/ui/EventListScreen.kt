@@ -1,13 +1,18 @@
 package com.example.noubasketalzira.feature.events.ui
 
+import android.app.TimePickerDialog
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -24,6 +29,7 @@ fun EventListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
+    var eventToDelete by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Eventos del Equipo") }) },
@@ -56,14 +62,40 @@ fun EventListScreen(
                             }
                         }
                         if (uiState.canManageEvents) {
-                            IconButton(onClick = { viewModel.deleteEvent(event.id) }) {
-                                Text("Borrar")
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFE53935), CircleShape) // Red background
+                                    .clickable { eventToDelete = event.id }
+                                    .padding(12.dp)
+                                    .align(Alignment.CenterVertically)
+                            ) {
+                                Text("🗑️", color = Color.White)
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    if (eventToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { eventToDelete = null },
+            title = { Text("Borrar Evento") },
+            text = { Text("¿Estás seguro de que quieres borrar este evento? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteEvent(eventToDelete!!)
+                        eventToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) { Text("Borrar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { eventToDelete = null }) { Text("Cancelar") }
+            }
+        )
     }
 
     if (showCreateDialog) {
@@ -87,6 +119,12 @@ fun CreateEventDialog(
     var description by remember { mutableStateOf("") }
     val datePickerState = rememberDatePickerState()
     var showDatePicker by remember { mutableStateOf(false) }
+    
+    // Time states
+    var selectedHour by remember { mutableStateOf<Int?>(null) }
+    var selectedMinute by remember { mutableStateOf<Int?>(null) }
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
 
     if (showDatePicker) {
         DatePickerDialog(
@@ -120,14 +158,39 @@ fun CreateEventDialog(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                Button(onClick = { showDatePicker = true }) {
-                    val selectedMillis = datePickerState.selectedDateMillis
-                    val dateText = if (selectedMillis != null) {
-                        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(selectedMillis))
-                    } else {
-                        "Seleccionar Fecha"
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Button(onClick = { showDatePicker = true }) {
+                        val selectedMillis = datePickerState.selectedDateMillis
+                        val dateText = if (selectedMillis != null) {
+                            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(selectedMillis))
+                        } else {
+                            "Fecha"
+                        }
+                        Text(dateText)
                     }
-                    Text(dateText)
+
+                    Button(onClick = { 
+                        TimePickerDialog(
+                            context,
+                            { _, hour, minute ->
+                                selectedHour = hour
+                                selectedMinute = minute
+                            },
+                            calendar.get(Calendar.HOUR_OF_DAY),
+                            calendar.get(Calendar.MINUTE),
+                            true
+                        ).show()
+                    }) {
+                        val timeText = if (selectedHour != null && selectedMinute != null) {
+                            String.format("%02d:%02d", selectedHour, selectedMinute)
+                        } else {
+                            "Hora"
+                        }
+                        Text(timeText)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -135,17 +198,26 @@ fun CreateEventDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Descripción") }
+                    label = { Text("Descripción") },
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
             Button(
                 onClick = { 
-                    val date = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
-                    onCreate(type, date, description) 
+                    val dateMillis = datePickerState.selectedDateMillis ?: System.currentTimeMillis()
+                    val cal = Calendar.getInstance()
+                    cal.timeInMillis = dateMillis
+                    
+                    if (selectedHour != null && selectedMinute != null) {
+                        cal.set(Calendar.HOUR_OF_DAY, selectedHour!!)
+                        cal.set(Calendar.MINUTE, selectedMinute!!)
+                    }
+                    
+                    onCreate(type, cal.timeInMillis, description) 
                 },
-                enabled = datePickerState.selectedDateMillis != null
+                enabled = datePickerState.selectedDateMillis != null && selectedHour != null
             ) { Text("Crear") }
         },
         dismissButton = {
