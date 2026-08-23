@@ -38,10 +38,15 @@ class EventListViewModel(
         }
     }
 
-    fun createEvent(type: EventType, description: String) {
+    fun createEvent(type: EventType, date: Long, description: String) {
         viewModelScope.launch {
-            // For simplicity, event is created with current time
-            repository.createEvent(teamId, type, System.currentTimeMillis(), description)
+            repository.createEvent(teamId, type, date, description)
+        }
+    }
+
+    fun deleteEvent(eventId: String) {
+        viewModelScope.launch {
+            repository.deleteEvent(eventId)
         }
     }
 }

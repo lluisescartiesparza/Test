@@ -11,6 +11,7 @@ interface IEventRepository {
     fun observeAttendance(eventId: String): Flow<List<Attendance>>
     
     suspend fun createEvent(teamId: String, type: EventType, date: Long, description: String?)
+    suspend fun deleteEvent(eventId: String)
     suspend fun updateAttendanceStatus(eventId: String, userId: String, status: AttendanceStatus)
     suspend fun markAllAs(eventId: String, status: AttendanceStatus)
 }

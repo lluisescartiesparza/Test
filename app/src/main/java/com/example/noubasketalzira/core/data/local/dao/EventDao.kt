@@ -17,4 +17,7 @@ interface EventDao {
 
     @Query("SELECT * FROM events WHERE id = :eventId")
     fun getEventById(eventId: String): EventEntity?
+
+    @Query("DELETE FROM events WHERE id = :eventId")
+    fun deleteEvent(eventId: String)
 }

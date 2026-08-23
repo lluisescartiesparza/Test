@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+import kotlinx.coroutines.flow.flowOn
+
 class EventRepositoryImpl(
     private val eventDao: EventDao,
     private val attendanceDao: AttendanceDao,
@@ -35,11 +37,10 @@ class EventRepositoryImpl(
     override fun observeEvents(teamId: String): Flow<List<Event>> {
         return eventDao.observeEventsByTeam(teamId).map { entities -> 
             entities.map { it.toDomain() } 
-        }
+        }.flowOn(Dispatchers.IO)
     }
 
     override fun observeAttendance(eventId: String): Flow<List<Attendance>> {
-        // This requires joining with users. Since Flow map runs in coroutine, we can fetch user names.
         return attendanceDao.observeAttendanceByEvent(eventId).map { entities ->
             entities.map { entity ->
                 val user = userDao.getUserById(entity.userId)
@@ -50,7 +51,7 @@ class EventRepositoryImpl(
                     status = AttendanceStatus.valueOf(entity.status)
                 )
             }
-        }
+        }.flowOn(Dispatchers.IO)
     }
 
     override suspend fun createEvent(
@@ -70,13 +71,8 @@ class EventRepositoryImpl(
         )
 
         withContext(Dispatchers.IO) {
-            // 1. Insert Event
             eventDao.insertEvent(newEvent)
-
-            // 2. Fetch all JUGADORES in this team
             val jugadores = teamMemberDao.getMembersByTeamIdAndRole(teamId, "JUGADOR")
-
-            // 3. Insert Attendance records
             val attendances = jugadores.map {
                 AttendanceEntity(
                     eventId = newEventId,
@@ -90,11 +86,29 @@ class EventRepositoryImpl(
             }
         }
         
-        // 4. Enqueue Sync
         val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
         val data = Data.Builder()
             .putString("action", "INSERT_EVENT")
             .putString("eventId", newEventId)
+            .build()
+            
+        val request = OneTimeWorkRequestBuilder<com.example.noubasketalzira.feature.events.data.worker.EventSyncWorker>()
+            .setConstraints(constraints)
+            .setInputData(data)
+            .build()
+            
+        WorkManager.getInstance(context).enqueue(request)
+    }
+
+    override suspend fun deleteEvent(eventId: String) {
+        withContext(Dispatchers.IO) {
+            eventDao.deleteEvent(eventId)
+        }
+        
+        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+        val data = Data.Builder()
+            .putString("action", "DELETE_EVENT")
+            .putString("eventId", eventId)
             .build()
             
         val request = OneTimeWorkRequestBuilder<com.example.noubasketalzira.feature.events.data.worker.EventSyncWorker>()
@@ -120,7 +134,7 @@ class EventRepositoryImpl(
         withContext(Dispatchers.IO) {
             attendanceDao.updateAllAttendanceStatus(eventId, status.name)
         }
-        enqueueAttendanceSync(eventId, null) // Null means sync all for event, or we can handle it specifically
+        enqueueAttendanceSync(eventId, null)
     }
     
     private fun enqueueAttendanceSync(eventId: String, userId: String?) {
