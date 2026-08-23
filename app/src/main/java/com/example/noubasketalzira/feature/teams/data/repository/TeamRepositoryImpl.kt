@@ -24,9 +24,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+import com.example.noubasketalzira.core.data.local.dao.UserDao
+
 class TeamRepositoryImpl(
     private val teamDao: TeamDao,
     private val teamMemberDao: TeamMemberDao,
+    private val userDao: UserDao,
     private val supabase: SupabaseClient,
     private val context: Context
 ) : ITeamRepository {
@@ -108,6 +111,7 @@ class TeamRepositoryImpl(
     override suspend fun syncTeams() {
         withContext(Dispatchers.IO) {
             try {
+                // Sync Teams
                 val remoteTeams = supabase.postgrest["teams"].select().decodeList<TeamDto>()
                 remoteTeams.forEach { dto ->
                     teamDao.insertTeam(
@@ -115,10 +119,38 @@ class TeamRepositoryImpl(
                             id = dto.id,
                             name = dto.name,
                             category = dto.category,
-                            createdAt = System.currentTimeMillis() // Or use dto.createdAt if parsed
+                            createdAt = System.currentTimeMillis()
                         )
                     )
                 }
+
+                // Sync Users
+                val remoteUsers = supabase.postgrest["users"].select().decodeList<com.example.noubasketalzira.core.data.remote.dto.UserDto>()
+                remoteUsers.forEach { dto ->
+                    userDao.insertUser(
+                        com.example.noubasketalzira.core.data.local.entity.UserEntity(
+                            id = dto.id,
+                            email = dto.email,
+                            fullName = dto.fullName,
+                            role = com.example.noubasketalzira.core.domain.model.UserRole.valueOf(dto.role),
+                            createdAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+
+                // Sync Team Members
+                val remoteMembers = supabase.postgrest["team_members"].select().decodeList<com.example.noubasketalzira.core.data.remote.dto.TeamMemberDto>()
+                remoteMembers.forEach { dto ->
+                    teamMemberDao.insertTeamMember(
+                        TeamMemberEntity(
+                            teamId = dto.teamId,
+                            userId = dto.userId,
+                            role = dto.role,
+                            createdAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+
             } catch (e: Exception) {
                 Log.e("SupabaseSync", "Error en red: ${e.message}", e)
             }

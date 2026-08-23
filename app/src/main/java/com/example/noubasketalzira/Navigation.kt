@@ -33,7 +33,24 @@ fun MainNavigation() {
         }
         
         composable("events") {
-            // Provisional empty route for "Gestión de Equipo (Eventos)"
+            com.example.noubasketalzira.feature.events.ui.EventTeamSelectionScreen(
+                onTeamSelected = { teamId -> navController.navigate("eventList/$teamId") }
+            )
+        }
+
+        composable("eventList/{teamId}") { backStackEntry ->
+            val teamId = backStackEntry.arguments?.getString("teamId") ?: ""
+            com.example.noubasketalzira.feature.events.ui.EventListScreen(
+                teamId = teamId,
+                onEventSelected = { eventId -> navController.navigate("eventDetail/$eventId") }
+            )
+        }
+
+        composable("eventDetail/{eventId}") { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getString("eventId") ?: ""
+            com.example.noubasketalzira.feature.events.ui.EventDetailScreen(
+                eventId = eventId
+            )
         }
     }
 }
