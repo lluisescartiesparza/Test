@@ -11,6 +11,7 @@ import com.example.noubasketalzira.feature.events.domain.repository.IEventReposi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 // Wait, I should not use java.util.UUID or java.text.SimpleDateFormat here if I want strict KMP.
@@ -93,7 +94,21 @@ class EventRepositoryImpl(
 
     override suspend fun markAllAs(eventId: String, status: AttendanceStatus) {
         withContext(Dispatchers.IO) {
-            localDataSource.updateAllAttendanceStatus(eventId, status.name)
+            // No tenemos teamId directamente, pero observeAttendance devuelve todos los miembros (gracias a la query JOIN en Room)
+            // Por lo que podemos observar momentaneamente o simplemente... wait, updateAllAttendanceStatus no servirá si faltan filas.
+            // Es mejor obtener todas las asistencias actuales, y forzarlas a upsert
+            val currentAttendances = localDataSource.observeAttendance(eventId).first()
+            val attendancesToUpsert = currentAttendances.map { att ->
+                Attendance(
+                    eventId = eventId,
+                    userId = att.userId,
+                    userName = att.userName,
+                    status = status
+                )
+            }
+            if (attendancesToUpsert.isNotEmpty()) {
+                localDataSource.insertAttendances(attendancesToUpsert)
+            }
         }
         syncScheduler.scheduleAttendanceSync(eventId, null)
     }

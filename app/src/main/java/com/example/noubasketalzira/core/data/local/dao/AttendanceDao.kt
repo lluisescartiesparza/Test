@@ -23,4 +23,24 @@ interface AttendanceDao {
     
     @Query("UPDATE attendance SET status = :status WHERE eventId = :eventId")
     fun updateAllAttendanceStatus(eventId: String, status: String)
+
+    data class AttendanceWithUser(
+        val eventId: String,
+        val userId: String,
+        val userName: String,
+        val status: String
+    )
+
+    @Query("""
+        SELECT 
+            :eventId as eventId,
+            u.id as userId,
+            u.fullName as userName,
+            COALESCE(a.status, 'NO_CONVOCADO') as status
+        FROM team_members tm
+        JOIN users u ON tm.userId = u.id
+        LEFT JOIN attendance a ON a.userId = u.id AND a.eventId = :eventId
+        WHERE tm.teamId = (SELECT teamId FROM events WHERE id = :eventId)
+    """)
+    fun observeAllTeamAttendances(eventId: String): Flow<List<AttendanceWithUser>>
 }

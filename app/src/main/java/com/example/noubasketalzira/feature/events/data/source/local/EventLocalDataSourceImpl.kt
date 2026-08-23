@@ -25,14 +25,13 @@ class EventLocalDataSourceImpl(
     }
 
     override fun observeAttendance(eventId: String): Flow<List<Attendance>> {
-        return attendanceDao.observeAttendanceByEvent(eventId).map { entities ->
-            entities.map { entity ->
-                val user = userDao.getUserById(entity.userId)
+        return attendanceDao.observeAllTeamAttendances(eventId).map { items ->
+            items.map { item ->
                 Attendance(
-                    eventId = entity.eventId,
-                    userId = entity.userId,
-                    userName = user?.fullName ?: "Unknown",
-                    status = AttendanceStatus.valueOf(entity.status)
+                    eventId = item.eventId,
+                    userId = item.userId,
+                    userName = item.userName,
+                    status = AttendanceStatus.valueOf(item.status)
                 )
             }
         }
@@ -67,7 +66,14 @@ class EventLocalDataSourceImpl(
     }
 
     override suspend fun updateAttendanceStatus(eventId: String, userId: String, status: String) {
-        attendanceDao.updateAttendanceStatus(eventId, userId, status)
+        attendanceDao.insertAttendance(
+            AttendanceEntity(
+                eventId = eventId,
+                userId = userId,
+                status = status,
+                createdAt = System.currentTimeMillis()
+            )
+        )
     }
 
     override suspend fun updateAllAttendanceStatus(eventId: String, status: String) {
