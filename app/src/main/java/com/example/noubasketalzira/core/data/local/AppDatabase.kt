@@ -25,4 +25,7 @@ import com.example.noubasketalzira.core.data.local.dao.TeamMemberDao
 abstract class AppDatabase : RoomDatabase() {
     abstract fun teamDao(): TeamDao
     abstract fun teamMemberDao(): TeamMemberDao
+    abstract fun userDao(): com.example.noubasketalzira.core.data.local.dao.UserDao
+    abstract fun eventDao(): com.example.noubasketalzira.core.data.local.dao.EventDao
+    abstract fun attendanceDao(): com.example.noubasketalzira.core.data.local.dao.AttendanceDao
 }

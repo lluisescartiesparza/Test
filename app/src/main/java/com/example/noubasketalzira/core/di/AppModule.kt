@@ -36,10 +36,17 @@ val appModule = module {
     }
     single { get<AppDatabase>().teamDao() }
     single { get<AppDatabase>().teamMemberDao() }
+    single { get<AppDatabase>().userDao() }
+    single { get<AppDatabase>().eventDao() }
+    single { get<AppDatabase>().attendanceDao() }
     
     // Repositories
     single<com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository> {
-        com.example.noubasketalzira.feature.teams.data.repository.TeamRepositoryImpl(get(), get(), get(), androidContext())
+        com.example.noubasketalzira.feature.teams.data.repository.TeamRepositoryImpl(get(), get(), get(), get(), androidContext())
+    }
+    
+    single<com.example.noubasketalzira.feature.events.domain.repository.IEventRepository> {
+        com.example.noubasketalzira.feature.events.data.repository.EventRepositoryImpl(get(), get(), get(), get(), androidContext())
     }
     
     // Auth
@@ -48,5 +55,14 @@ val appModule = module {
     // ViewModels
     viewModel {
         com.example.noubasketalzira.feature.teams.ui.TeamViewModel(get(), get())
+    }
+    viewModel {
+        com.example.noubasketalzira.feature.events.ui.EventTeamSelectionViewModel(get(), get(), get())
+    }
+    viewModel { params ->
+        com.example.noubasketalzira.feature.events.ui.EventListViewModel(params.get(), get(), get())
+    }
+    viewModel { params ->
+        com.example.noubasketalzira.feature.events.ui.EventDetailViewModel(params.get(), get(), get())
     }
 }

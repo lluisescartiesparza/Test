@@ -6,9 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
-enum class EventType {
-    ENTRENAMIENTO, PARTIDO, TECNIFICACION
-}
+import com.example.noubasketalzira.feature.events.domain.model.EventType
 
 @Entity(
     tableName = "events",
@@ -30,3 +28,13 @@ data class EventEntity(
     val description: String?,
     val createdAt: Long = System.currentTimeMillis()
 )
+
+fun EventEntity.toDomain(): com.example.noubasketalzira.feature.events.domain.model.Event {
+    return com.example.noubasketalzira.feature.events.domain.model.Event(
+        id = this.id,
+        teamId = this.teamId,
+        type = this.type,
+        date = this.date,
+        description = this.description
+    )
+}
