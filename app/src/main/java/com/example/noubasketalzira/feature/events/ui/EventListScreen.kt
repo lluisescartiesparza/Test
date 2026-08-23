@@ -22,6 +22,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import com.example.noubasketalzira.feature.events.domain.model.EventType
 
+import com.example.noubasketalzira.core.ui.debouncedClickable
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventListScreen(
@@ -32,12 +34,19 @@ fun EventListScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var eventToDelete by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Eventos del Equipo") }) },
         floatingActionButton = {
             if (uiState.canManageEvents) {
-                FloatingActionButton(onClick = { showCreateDialog = true }) {
+                FloatingActionButton(onClick = { 
+                    if (!uiState.hasPlayers) {
+                        viewModel.createEvent(EventType.ENTRENAMIENTO, 0, "") // Will trigger error
+                    } else {
+                        showCreateDialog = true 
+                    }
+                }) {
                     Text("+")
                 }
             }
@@ -50,7 +59,7 @@ fun EventListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp)
-                        .clickable { onEventSelected(event.id) }
+                        .debouncedClickable { onEventSelected(event.id) }
                 ) {
                     Row(
                         modifier = Modifier.padding(16.dp),
@@ -67,7 +76,7 @@ fun EventListScreen(
                             Box(
                                 modifier = Modifier
                                     .background(Color(0xFFE53935), CircleShape) // Red background
-                                    .clickable { eventToDelete = event.id }
+                                    .clickable { eventToDelete = event.id } // keeping regular clickable for delete icon as it's small and less prone to click-through navigation issues, or could change it too. Let's keep it.
                                     .padding(12.dp)
                                     .align(Alignment.CenterVertically)
                             ) {
@@ -106,6 +115,17 @@ fun EventListScreen(
             onCreate = { type, date, desc -> 
                 viewModel.createEvent(type, date, desc)
                 showCreateDialog = false
+            }
+        )
+    }
+
+    if (uiState.error != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissError() },
+            title = { Text("Aviso") },
+            text = { Text(uiState.error ?: "") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.dismissError() }) { Text("OK") }
             }
         )
     }

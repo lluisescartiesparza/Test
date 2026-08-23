@@ -1,18 +1,8 @@
 package com.example.noubasketalzira.feature.events.data.repository
 
-import android.content.Context
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import com.example.noubasketalzira.core.data.local.dao.AttendanceDao
-import com.example.noubasketalzira.core.data.local.dao.EventDao
-import com.example.noubasketalzira.core.data.local.dao.TeamMemberDao
-import com.example.noubasketalzira.core.data.local.dao.UserDao
-import com.example.noubasketalzira.core.data.local.entity.AttendanceEntity
-import com.example.noubasketalzira.core.data.local.entity.EventEntity
-import com.example.noubasketalzira.core.data.local.entity.toDomain
+import com.example.noubasketalzira.core.domain.scheduler.ISyncScheduler
+import com.example.noubasketalzira.feature.events.data.source.local.IEventLocalDataSource
+import com.example.noubasketalzira.feature.events.data.source.remote.IEventRemoteDataSource
 import com.example.noubasketalzira.feature.events.domain.model.Attendance
 import com.example.noubasketalzira.feature.events.domain.model.AttendanceStatus
 import com.example.noubasketalzira.feature.events.domain.model.Event
@@ -20,42 +10,29 @@ import com.example.noubasketalzira.feature.events.domain.model.EventType
 import com.example.noubasketalzira.feature.events.domain.repository.IEventRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
-import java.util.UUID
-
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.postgrest
+// Wait, I should not use java.util.UUID or java.text.SimpleDateFormat here if I want strict KMP.
+// But we still need UUID. We can just use a random string or keep UUID until a multiplatform library is added.
+import java.util.UUID
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
 
 class EventRepositoryImpl(
-    private val eventDao: EventDao,
-    private val attendanceDao: AttendanceDao,
-    private val teamMemberDao: TeamMemberDao,
-    private val userDao: UserDao,
-    private val context: Context,
-    private val supabase: SupabaseClient
+    private val localDataSource: IEventLocalDataSource,
+    private val remoteDataSource: IEventRemoteDataSource,
+    private val syncScheduler: ISyncScheduler
 ) : IEventRepository {
 
     override fun observeEvents(teamId: String): Flow<List<Event>> {
-        return eventDao.observeEventsByTeam(teamId).map { entities -> 
-            entities.map { it.toDomain() } 
-        }.flowOn(Dispatchers.IO)
+        return localDataSource.observeEvents(teamId).flowOn(Dispatchers.IO)
     }
 
     override fun observeAttendance(eventId: String): Flow<List<Attendance>> {
-        return attendanceDao.observeAttendanceByEvent(eventId).map { entities ->
-            entities.map { entity ->
-                val user = userDao.getUserById(entity.userId)
-                Attendance(
-                    eventId = entity.eventId,
-                    userId = entity.userId,
-                    userName = user?.fullName ?: "Unknown",
-                    status = AttendanceStatus.valueOf(entity.status)
-                )
-            }
-        }.flowOn(Dispatchers.IO)
+        return localDataSource.observeAttendance(eventId).flowOn(Dispatchers.IO)
     }
 
     override suspend fun createEvent(
@@ -65,62 +42,43 @@ class EventRepositoryImpl(
         description: String?
     ) {
         val newEventId = UUID.randomUUID().toString()
-        val newEvent = EventEntity(
+        val newEvent = Event(
             id = newEventId,
             teamId = teamId,
             type = type,
             date = date,
-            description = description,
-            createdAt = System.currentTimeMillis()
+            description = description
         )
 
         withContext(Dispatchers.IO) {
-            eventDao.insertEvent(newEvent)
-            val jugadores = teamMemberDao.getMembersByTeamIdAndRole(teamId, "JUGADOR")
-            val attendances = jugadores.map {
-                AttendanceEntity(
+            val playerIds = localDataSource.getPlayersForTeam(teamId)
+            if (playerIds.isEmpty()) {
+                throw IllegalStateException("El equipo no tiene jugadores. No se puede crear un evento.")
+            }
+
+            localDataSource.insertEvent(newEvent)
+            
+            val attendances = playerIds.map { userId ->
+                Attendance(
                     eventId = newEventId,
-                    userId = it.userId,
-                    status = AttendanceStatus.NO_CONVOCADO.name,
-                    createdAt = System.currentTimeMillis()
+                    userId = userId,
+                    userName = "", // Irrelevant for insert
+                    status = AttendanceStatus.NO_CONVOCADO
                 )
             }
             if (attendances.isNotEmpty()) {
-                attendanceDao.insertAttendances(attendances)
+                localDataSource.insertAttendances(attendances)
             }
         }
         
-        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-        val data = Data.Builder()
-            .putString("action", "INSERT_EVENT")
-            .putString("eventId", newEventId)
-            .build()
-            
-        val request = OneTimeWorkRequestBuilder<com.example.noubasketalzira.feature.events.data.worker.EventSyncWorker>()
-            .setConstraints(constraints)
-            .setInputData(data)
-            .build()
-            
-        WorkManager.getInstance(context).enqueue(request)
+        syncScheduler.scheduleEventSync("INSERT_EVENT", newEventId)
     }
 
     override suspend fun deleteEvent(eventId: String) {
         withContext(Dispatchers.IO) {
-            eventDao.deleteEvent(eventId)
+            localDataSource.deleteEvent(eventId)
         }
-        
-        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-        val data = Data.Builder()
-            .putString("action", "DELETE_EVENT")
-            .putString("eventId", eventId)
-            .build()
-            
-        val request = OneTimeWorkRequestBuilder<com.example.noubasketalzira.feature.events.data.worker.EventSyncWorker>()
-            .setConstraints(constraints)
-            .setInputData(data)
-            .build()
-            
-        WorkManager.getInstance(context).enqueue(request)
+        syncScheduler.scheduleEventSync("DELETE_EVENT", eventId)
     }
 
     override suspend fun updateAttendanceStatus(
@@ -129,72 +87,75 @@ class EventRepositoryImpl(
         status: AttendanceStatus
     ) {
         withContext(Dispatchers.IO) {
-            attendanceDao.updateAttendanceStatus(eventId, userId, status.name)
+            localDataSource.updateAttendanceStatus(eventId, userId, status.name)
         }
-        enqueueAttendanceSync(eventId, userId)
+        syncScheduler.scheduleAttendanceSync(eventId, userId)
     }
 
     override suspend fun markAllAs(eventId: String, status: AttendanceStatus) {
         withContext(Dispatchers.IO) {
-            attendanceDao.updateAllAttendanceStatus(eventId, status.name)
+            // No tenemos teamId directamente, pero observeAttendance devuelve todos los miembros (gracias a la query JOIN en Room)
+            // Por lo que podemos observar momentaneamente o simplemente... wait, updateAllAttendanceStatus no servirá si faltan filas.
+            // Es mejor obtener todas las asistencias actuales, y forzarlas a upsert
+            val currentAttendances = localDataSource.observeAttendance(eventId).first()
+            val attendancesToUpsert = currentAttendances.map { att ->
+                Attendance(
+                    eventId = eventId,
+                    userId = att.userId,
+                    userName = att.userName,
+                    status = status
+                )
+            }
+            if (attendancesToUpsert.isNotEmpty()) {
+                localDataSource.insertAttendances(attendancesToUpsert)
+            }
         }
-        enqueueAttendanceSync(eventId, null)
-    }
-    
-    private fun enqueueAttendanceSync(eventId: String, userId: String?) {
-        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-        val data = Data.Builder()
-            .putString("eventId", eventId)
-        if (userId != null) {
-            data.putString("userId", userId)
-        }
-        
-        val request = OneTimeWorkRequestBuilder<com.example.noubasketalzira.feature.events.data.worker.AttendanceSyncWorker>()
-            .setConstraints(constraints)
-            .setInputData(data.build())
-            .build()
-            
-        WorkManager.getInstance(context).enqueue(request)
+        syncScheduler.scheduleAttendanceSync(eventId, null)
     }
 
     override suspend fun syncEvents(teamId: String) {
         withContext(Dispatchers.IO) {
             try {
-                // Fetch events
-                val remoteEvents = supabase.postgrest["events"]
-                    .select { filter { eq("team_id", teamId) } }
-                    .decodeList<com.example.noubasketalzira.feature.events.data.worker.EventInsertDto>()
+                val remoteEvents = remoteDataSource.fetchEvents(teamId)
                 
                 remoteEvents.forEach { dto ->
-                    eventDao.insertEvent(EventEntity(
+                    // Parse date here for now. Ideal KMP solution would use kotlinx-datetime
+                    val parsedDate = try {
+                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).parse(dto.date)?.time ?: System.currentTimeMillis()
+                    } catch (e: Exception) {
+                        System.currentTimeMillis()
+                    }
+
+                    localDataSource.insertEvent(Event(
                         id = dto.id,
                         teamId = dto.team_id,
                         type = EventType.valueOf(dto.type),
-                        date = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", java.util.Locale.getDefault()).parse(dto.date)?.time ?: System.currentTimeMillis(),
-                        description = dto.description,
-                        createdAt = System.currentTimeMillis()
+                        date = parsedDate,
+                        description = dto.description
                     ))
                     
-                    // Fetch attendance for this event
-                    val remoteAtt = supabase.postgrest["attendance"]
-                        .select { filter { eq("event_id", dto.id) } }
-                        .decodeList<com.example.noubasketalzira.feature.events.data.worker.AttendanceInsertDto>()
-                    
-                    val attEntities = remoteAtt.map { att ->
-                        AttendanceEntity(
+                    val remoteAtt = remoteDataSource.fetchAttendance(dto.id)
+                    val attendances = remoteAtt.map { att ->
+                        Attendance(
                             eventId = att.event_id,
                             userId = att.user_id,
-                            status = att.status,
-                            createdAt = System.currentTimeMillis()
+                            userName = "",
+                            status = AttendanceStatus.valueOf(att.status)
                         )
                     }
-                    if (attEntities.isNotEmpty()) {
-                        attendanceDao.insertAttendances(attEntities)
+                    if (attendances.isNotEmpty()) {
+                        localDataSource.insertAttendances(attendances)
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("EventRepositoryImpl", "Sync events failed", e)
+                println("Sync events failed: ${e.message}")
             }
+        }
+    }
+
+    override suspend fun hasPlayers(teamId: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            localDataSource.getPlayersForTeam(teamId).isNotEmpty()
         }
     }
 }

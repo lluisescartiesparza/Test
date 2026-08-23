@@ -42,10 +42,7 @@ class EventSyncWorker(
 
             // For INSERT_EVENT
             val event = eventDao.getEventById(eventId) ?: return Result.failure()
-            val attendancesFlow = attendanceDao.observeAttendanceByEvent(eventId)
-            // Wait, observe returns Flow, we need a one-shot query. Let's get it by first() or add a get query.
-            // But wait, attendanceDao doesn't have getAttendancesByEvent.
-            // For now, just flow first
+            val attendancesFlow = attendanceDao.observeAllTeamAttendances(eventId)
             val attendances = attendancesFlow.first()
 
             val eventDto = EventInsertDto(
@@ -56,13 +53,13 @@ class EventSyncWorker(
                 description = event.description
             )
 
-            supabase.postgrest["events"].insert(eventDto)
+            supabase.postgrest["events"].upsert(eventDto)
             
             val attDtos = attendances.map { 
                 AttendanceInsertDto(event_id = it.eventId, user_id = it.userId, status = it.status) 
             }
             if (attDtos.isNotEmpty()) {
-                supabase.postgrest["attendance"].insert(attDtos)
+                supabase.postgrest["attendance"].upsert(attDtos)
             }
             return Result.success()
         } catch (e: Exception) {

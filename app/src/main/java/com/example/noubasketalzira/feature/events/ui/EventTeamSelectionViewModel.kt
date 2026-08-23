@@ -8,6 +8,7 @@ import com.example.noubasketalzira.core.data.local.dao.TeamDao
 import com.example.noubasketalzira.core.data.local.dao.TeamMemberDao
 import com.example.noubasketalzira.core.data.local.entity.toDomain
 import com.example.noubasketalzira.feature.teams.domain.model.Team
+import com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -21,7 +22,8 @@ data class EventTeamSelectionState(
 class EventTeamSelectionViewModel(
     private val sessionManager: ISessionManager,
     private val teamDao: TeamDao,
-    private val teamMemberDao: TeamMemberDao
+    private val teamMemberDao: TeamMemberDao,
+    private val teamRepository: ITeamRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EventTeamSelectionState())
@@ -29,6 +31,9 @@ class EventTeamSelectionViewModel(
 
     init {
         loadTeams()
+        viewModelScope.launch {
+            teamRepository.syncTeams()
+        }
     }
 
     private fun loadTeams() {

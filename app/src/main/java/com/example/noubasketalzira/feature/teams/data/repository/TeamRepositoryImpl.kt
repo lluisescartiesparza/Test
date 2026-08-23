@@ -1,158 +1,79 @@
 package com.example.noubasketalzira.feature.teams.data.repository
 
-import android.content.Context
-import android.util.Log
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import com.example.noubasketalzira.core.data.local.dao.TeamDao
-import com.example.noubasketalzira.core.data.local.dao.TeamMemberDao
-import com.example.noubasketalzira.core.data.local.entity.TeamEntity
-import com.example.noubasketalzira.core.data.local.entity.TeamMemberEntity
-import com.example.noubasketalzira.core.data.local.entity.toDomain
-import com.example.noubasketalzira.feature.teams.data.worker.TeamSyncWorker
 import com.example.noubasketalzira.feature.teams.domain.model.Team
 import com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository
-import com.example.noubasketalzira.core.data.remote.dto.TeamDto
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
-import com.example.noubasketalzira.core.data.local.dao.UserDao
+import com.example.noubasketalzira.core.domain.scheduler.ISyncScheduler
+import com.example.noubasketalzira.feature.teams.data.source.local.ITeamLocalDataSource
+import com.example.noubasketalzira.feature.teams.data.source.remote.ITeamRemoteDataSource
 
 class TeamRepositoryImpl(
-    private val teamDao: TeamDao,
-    private val teamMemberDao: TeamMemberDao,
-    private val userDao: UserDao,
-    private val supabase: SupabaseClient,
-    private val context: Context
+    private val localDataSource: ITeamLocalDataSource,
+    private val remoteDataSource: ITeamRemoteDataSource,
+    private val syncScheduler: ISyncScheduler
 ) : ITeamRepository {
 
     override fun observeTeams(): Flow<List<Team>> {
-        return teamDao.observeAllTeams().map { entities -> 
-            entities.map { it.toDomain() } 
-        }
+        return localDataSource.observeTeams()
     }
 
     override suspend fun createTeam(name: String, category: String) {
+        // Here we still use UUID but we can replace it later if needed for KMP (e.g. uuid library)
         val newId = UUID.randomUUID().toString()
-        val newTeam = TeamEntity(
+        val newTeam = Team(
             id = newId,
             name = name,
-            category = category,
-            createdAt = System.currentTimeMillis()
+            category = category
         )
         withContext(Dispatchers.IO) {
-            teamDao.insertTeam(newTeam)
+            localDataSource.insertTeam(newTeam)
         }
         
-        // Encolar trabajo offline-first
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-            
-        val data = Data.Builder()
-            .putString(TeamSyncWorker.KEY_ACTION, TeamSyncWorker.ACTION_INSERT)
-            .putString(TeamSyncWorker.KEY_TEAM_ID, newId)
-            .putString(TeamSyncWorker.KEY_TEAM_NAME, name)
-            .putString(TeamSyncWorker.KEY_TEAM_CATEGORY, category)
-            .build()
-            
-        val request = OneTimeWorkRequestBuilder<TeamSyncWorker>()
-            .setConstraints(constraints)
-            .setInputData(data)
-            .build()
-            
-        WorkManager.getInstance(context).enqueue(request)
+        syncScheduler.scheduleTeamSync("insert", newId, name, category)
     }
 
     override suspend fun deleteTeam(teamId: String) {
         withContext(Dispatchers.IO) {
-            teamDao.deleteTeam(teamId)
+            localDataSource.deleteTeam(teamId)
         }
-        
-        // Encolar trabajo offline-first
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-            
-        val data = Data.Builder()
-            .putString(TeamSyncWorker.KEY_ACTION, TeamSyncWorker.ACTION_DELETE)
-            .putString(TeamSyncWorker.KEY_TEAM_ID, teamId)
-            .build()
-            
-        val request = OneTimeWorkRequestBuilder<TeamSyncWorker>()
-            .setConstraints(constraints)
-            .setInputData(data)
-            .build()
-            
-        WorkManager.getInstance(context).enqueue(request)
+        syncScheduler.scheduleTeamSync("delete", teamId)
     }
 
     override suspend fun assignMember(teamId: String, userId: String, role: com.example.noubasketalzira.feature.teams.domain.model.TeamRole) {
-        val newMember = TeamMemberEntity(
-            teamId = teamId,
-            userId = userId,
-            role = role.name,
-            createdAt = System.currentTimeMillis()
-        )
         withContext(Dispatchers.IO) {
-            teamMemberDao.insertTeamMember(newMember)
+            localDataSource.insertTeamMember(teamId, userId, role.name)
         }
-        // TODO: Sync to remote in background
     }
 
     override suspend fun syncTeams() {
         withContext(Dispatchers.IO) {
             try {
-                // Sync Teams
-                val remoteTeams = supabase.postgrest["teams"].select().decodeList<TeamDto>()
+                val remoteTeams = remoteDataSource.fetchTeams()
                 remoteTeams.forEach { dto ->
-                    teamDao.insertTeam(
-                        TeamEntity(
-                            id = dto.id,
-                            name = dto.name,
-                            category = dto.category,
-                            createdAt = System.currentTimeMillis()
-                        )
-                    )
+                    localDataSource.insertTeam(Team(
+                        id = dto.id,
+                        name = dto.name,
+                        category = dto.category
+                    ))
                 }
 
-                // Sync Users
-                val remoteUsers = supabase.postgrest["users"].select().decodeList<com.example.noubasketalzira.core.data.remote.dto.UserDto>()
+                val remoteUsers = remoteDataSource.fetchUsers()
                 remoteUsers.forEach { dto ->
-                    userDao.insertUser(
-                        com.example.noubasketalzira.core.data.local.entity.UserEntity(
-                            id = dto.id,
-                            email = dto.email,
-                            fullName = dto.fullName,
-                            role = com.example.noubasketalzira.core.domain.model.UserRole.valueOf(dto.role),
-                            createdAt = System.currentTimeMillis()
-                        )
-                    )
+                    localDataSource.insertUser(dto.id, dto.email, dto.fullName, dto.role)
                 }
 
-                // Sync Team Members
-                val remoteMembers = supabase.postgrest["team_members"].select().decodeList<com.example.noubasketalzira.core.data.remote.dto.TeamMemberDto>()
+                val remoteMembers = remoteDataSource.fetchTeamMembers()
                 remoteMembers.forEach { dto ->
-                    teamMemberDao.insertTeamMember(
-                        TeamMemberEntity(
-                            teamId = dto.teamId,
-                            userId = dto.userId,
-                            role = dto.role,
-                            createdAt = System.currentTimeMillis()
-                        )
-                    )
+                    localDataSource.insertTeamMember(dto.teamId, dto.userId, dto.role)
                 }
-
             } catch (e: Exception) {
-                Log.e("SupabaseSync", "Error en red: ${e.message}", e)
+                // Should avoid android Log in domain/data if pure KMP, but let's just println or ignore for now to remove android.*
+                println("Sync failed: ${e.message}")
             }
         }
     }

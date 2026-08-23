@@ -14,7 +14,9 @@ import kotlinx.coroutines.launch
 
 data class EventListState(
     val events: List<Event> = emptyList(),
-    val canManageEvents: Boolean = false
+    val canManageEvents: Boolean = false,
+    val hasPlayers: Boolean = false,
+    val error: String? = null
 )
 
 class EventListViewModel(
@@ -38,13 +40,26 @@ class EventListViewModel(
         }
         
         viewModelScope.launch {
+            val playersExist = repository.hasPlayers(teamId)
+            _uiState.update { it.copy(hasPlayers = playersExist) }
+        }
+        
+        viewModelScope.launch {
             repository.syncEvents(teamId)
         }
     }
 
     fun createEvent(type: EventType, date: Long, description: String) {
         viewModelScope.launch {
-            repository.createEvent(teamId, type, date, description)
+            try {
+                if (!_uiState.value.hasPlayers) {
+                    _uiState.update { it.copy(error = "No hay jugadores en el equipo. Añade jugadores primero.") }
+                    return@launch
+                }
+                repository.createEvent(teamId, type, date, description)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message) }
+            }
         }
     }
 
@@ -52,5 +67,9 @@ class EventListViewModel(
         viewModelScope.launch {
             repository.deleteEvent(eventId)
         }
+    }
+    
+    fun dismissError() {
+        _uiState.update { it.copy(error = null) }
     }
 }
