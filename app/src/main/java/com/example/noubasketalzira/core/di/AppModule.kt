@@ -40,13 +40,33 @@ val appModule = module {
     single { get<AppDatabase>().eventDao() }
     single { get<AppDatabase>().attendanceDao() }
     
+    // Scheduler
+    single<com.example.noubasketalzira.core.domain.scheduler.ISyncScheduler> {
+        com.example.noubasketalzira.core.data.worker.AndroidSyncScheduler(androidContext())
+    }
+    
+    // Data Sources
+    single<com.example.noubasketalzira.feature.teams.data.source.local.ITeamLocalDataSource> {
+        com.example.noubasketalzira.feature.teams.data.source.local.TeamLocalDataSourceImpl(get(), get(), get())
+    }
+    single<com.example.noubasketalzira.feature.teams.data.source.remote.ITeamRemoteDataSource> {
+        com.example.noubasketalzira.feature.teams.data.source.remote.TeamRemoteDataSourceImpl(get())
+    }
+    
+    single<com.example.noubasketalzira.feature.events.data.source.local.IEventLocalDataSource> {
+        com.example.noubasketalzira.feature.events.data.source.local.EventLocalDataSourceImpl(get(), get(), get(), get())
+    }
+    single<com.example.noubasketalzira.feature.events.data.source.remote.IEventRemoteDataSource> {
+        com.example.noubasketalzira.feature.events.data.source.remote.EventRemoteDataSourceImpl(get())
+    }
+    
     // Repositories
     single<com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository> {
-        com.example.noubasketalzira.feature.teams.data.repository.TeamRepositoryImpl(get(), get(), get(), get(), androidContext())
+        com.example.noubasketalzira.feature.teams.data.repository.TeamRepositoryImpl(get(), get(), get())
     }
     
     single<com.example.noubasketalzira.feature.events.domain.repository.IEventRepository> {
-        com.example.noubasketalzira.feature.events.data.repository.EventRepositoryImpl(get(), get(), get(), get(), androidContext(), get())
+        com.example.noubasketalzira.feature.events.data.repository.EventRepositoryImpl(get(), get(), get())
     }
     
     // Auth
