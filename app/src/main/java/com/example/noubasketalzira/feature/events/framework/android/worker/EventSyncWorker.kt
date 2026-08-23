@@ -27,19 +27,28 @@ class EventSyncWorker(
     private val attendanceDao: AttendanceDao by inject()
 
     override suspend fun doWork(): Result {
-        val eventId = inputData.getString("eventId") ?: return Result.failure()
+        val eventId = inputData.getString("eventId")
+        if (eventId == null) {
+            Log.e("EventSyncWorker", "EventId is null in inputData!")
+            return Result.failure()
+        }
         val action = inputData.getString("action") ?: "INSERT_EVENT"
 
         try {
-            if (action == "DELETE_EVENT") {
+            if (action == "delete") {
                 supabase.postgrest["events"].delete {
                     filter { eq("id", eventId) }
                 }
                 return Result.success()
             }
 
-            // For INSERT_EVENT
-            val event = eventDao.getEventById(eventId) ?: return Result.failure()
+            // For INSERT_EVENT (or "insert")
+            val event = eventDao.getEventById(eventId)
+            if (event == null) {
+                Log.e("EventSyncWorker", "Event not found in Room for ID: $eventId")
+                return Result.failure()
+            }
+            
             val attendancesFlow = attendanceDao.observeAllTeamAttendances(eventId)
             val attendances = attendancesFlow.first()
 

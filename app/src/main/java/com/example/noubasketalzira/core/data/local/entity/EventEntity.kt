@@ -4,7 +4,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import java.util.UUID
 
 import com.example.noubasketalzira.feature.events.domain.model.EventType
 
@@ -21,7 +20,7 @@ import com.example.noubasketalzira.feature.events.domain.model.EventType
     indices = [Index("teamId")]
 )
 data class EventEntity(
-    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    @PrimaryKey val id: String,
     val teamId: String,
     val type: EventType,
     val date: Long, // timestamp
