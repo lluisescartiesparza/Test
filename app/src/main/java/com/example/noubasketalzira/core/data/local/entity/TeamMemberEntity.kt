@@ -29,3 +29,11 @@ data class TeamMemberEntity(
     val role: String,
     val createdAt: Long = System.currentTimeMillis()
 )
+
+fun TeamMemberEntity.toDomain(): com.example.noubasketalzira.feature.teams.domain.model.TeamMember {
+    return com.example.noubasketalzira.feature.teams.domain.model.TeamMember(
+        teamId = this.teamId,
+        userId = this.userId,
+        role = com.example.noubasketalzira.feature.teams.domain.model.TeamRole.valueOf(this.role)
+    )
+}
