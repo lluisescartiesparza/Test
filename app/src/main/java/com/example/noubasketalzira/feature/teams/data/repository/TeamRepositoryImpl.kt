@@ -92,11 +92,11 @@ class TeamRepositoryImpl(
         WorkManager.getInstance(context).enqueue(request)
     }
 
-    override suspend fun assignMember(teamId: String, userId: String, role: String) {
+    override suspend fun assignMember(teamId: String, userId: String, role: com.example.noubasketalzira.feature.teams.domain.model.TeamRole) {
         val newMember = TeamMemberEntity(
             teamId = teamId,
             userId = userId,
-            role = role,
+            role = role.name,
             createdAt = System.currentTimeMillis()
         )
         withContext(Dispatchers.IO) {

@@ -62,7 +62,7 @@ class TeamViewModel(
         }
     }
 
-    fun assignMockMember(teamId: String, role: String = "ENTRENADOR") {
+    fun assignMockMember(teamId: String, role: com.example.noubasketalzira.feature.teams.domain.model.TeamRole = com.example.noubasketalzira.feature.teams.domain.model.TeamRole.ENTRENADOR) {
         // TODO: En el futuro descomentar esto para bloquear la acción
         /*
         if (!hasManagementRole()) {
