@@ -30,30 +30,43 @@ class GenerateEventsReportUseCase(
         // Ordenamos alfabéticamente a los jugadores
         val sortedPlayers = allPlayerNames.sorted()
         
-        // Montamos las cabeceras: "Jugador" + cada evento en formato TIPO (dd/MM/yy)
-        val headers = mutableListOf("Jugador")
-        events.forEach { event ->
-            // Usamos formato yy (año a 2 dígitos) según el ejemplo del usuario (01/10/26)
-            val dateStr = dateFormatter.formatTimestamp(event.date, "dd/MM/yy")
-            headers.add("${event.type.name} ($dateStr)")
+        // Función para abreviar texto largo
+        fun formatText(text: String, limit: Int = 8): String {
+            return if (text.length > limit) text.substring(0, limit - 1) + "." else text
         }
         
-        // Montamos las filas (una por jugador)
+        // Montamos las cabeceras: "Evento" + cada jugador (nombre partido en 2 líneas si tiene espacio)
+        val headers = mutableListOf("Evento")
+        sortedPlayers.forEach { player ->
+            val parts = player.split(" ", limit = 2)
+            if (parts.size == 2) {
+                headers.add("${formatText(parts[0])}\n${formatText(parts[1])}")
+            } else {
+                headers.add(formatText(player))
+            }
+        }
+        
+        // Montamos las filas (una por evento)
         val rows = mutableListOf<List<String>>()
-        if (sortedPlayers.isEmpty()) {
-             // Si no hay jugadores, añadir una fila vacía para que conste algo
-             val emptyRow = mutableListOf("Sin jugadores")
-             events.forEach { emptyRow.add("-") }
+        if (events.isEmpty()) {
+             val emptyRow = mutableListOf("Sin eventos")
+             sortedPlayers.forEach { emptyRow.add("-") }
              rows.add(emptyRow)
         } else {
-            for (player in sortedPlayers) {
-                val playerRow = mutableListOf(player)
-                for (event in events) {
-                    val eventAttendances = attendancesByEvent[event.id] ?: emptyList()
+            for (event in events) {
+                // Columna 1: Evento
+                val dateStr = dateFormatter.formatTimestamp(event.date, "dd/MM/yy")
+                val eventName = formatText(event.type.name)
+                val eventRow = mutableListOf("$eventName\n($dateStr)")
+                
+                // Columnas de jugadores
+                val eventAttendances = attendancesByEvent[event.id] ?: emptyList()
+                for (player in sortedPlayers) {
                     val playerAttendance = eventAttendances.find { it.userName == player }
-                    playerRow.add(playerAttendance?.status?.name ?: "-")
+                    val statusText = playerAttendance?.status?.name ?: "-"
+                    eventRow.add(formatText(statusText))
                 }
-                rows.add(playerRow)
+                rows.add(eventRow)
             }
         }
         

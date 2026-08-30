@@ -45,6 +45,17 @@ class AndroidReportExporter(
                 textSize = dynamicTextSize
             }
 
+            // Helper to draw multiline and get height
+            fun drawMultilineText(text: String, x: Float, y: Float, textPaint: Paint): Float {
+                val lines = text.split("\n")
+                var cy = y
+                for (line in lines) {
+                    canvas.drawText(line, x, cy, textPaint)
+                    cy += textPaint.textSize + 2f
+                }
+                return (lines.size - 1) * (textPaint.textSize + 2f)
+            }
+
             var currentY = 50f
             val marginX = 50f
             val columnWidths = calculateColumnWidths(headers, rows, 742f) // 842 - 100 margin
@@ -55,11 +66,13 @@ class AndroidReportExporter(
             
             // Draw Headers
             var currentX = marginX
+            var maxHeaderHeight = 0f
             headers.forEachIndexed { index, header ->
-                canvas.drawText(header, currentX, currentY, headerPaint)
+                val addedHeight = drawMultilineText(header, currentX, currentY, headerPaint)
+                if (addedHeight > maxHeaderHeight) maxHeaderHeight = addedHeight
                 currentX += columnWidths.getOrElse(index) { 100f }
             }
-            currentY += 20f
+            currentY += maxHeaderHeight + 20f
             
             // Draw rows
             rows.forEach { row ->
@@ -72,13 +85,13 @@ class AndroidReportExporter(
                 }
                 
                 currentX = marginX
+                var maxRowHeight = 0f
                 row.forEachIndexed { index, cell ->
-                    // Simple word wrap or truncation is usually needed, but for simplicity we just draw
-                    val textToDraw = if (cell.length > 30) cell.take(27) + "..." else cell
-                    canvas.drawText(textToDraw, currentX, currentY, textPaint)
+                    val addedHeight = drawMultilineText(cell, currentX, currentY, textPaint)
+                    if (addedHeight > maxRowHeight) maxRowHeight = addedHeight
                     currentX += columnWidths.getOrElse(index) { 100f }
                 }
-                currentY += 20f
+                currentY += maxRowHeight + 20f
             }
             
             document.finishPage(page)
