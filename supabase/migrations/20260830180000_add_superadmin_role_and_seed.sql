@@ -39,14 +39,17 @@ INSERT INTO auth.identities (
     provider,
     created_at,
     updated_at
-) VALUES (
+)
+SELECT 
     '00000000-0000-0000-0000-000000000000',
     '00000000-0000-0000-0000-000000000000',
     format('{"sub":"%s","email":"%s"}', '00000000-0000-0000-0000-000000000000', 'lluisescartiesparza@gmail.com')::jsonb,
     'email',
     NOW(),
     NOW()
-) ON CONFLICT (provider, id) DO NOTHING;
+WHERE NOT EXISTS (
+    SELECT 1 FROM auth.identities WHERE user_id = '00000000-0000-0000-0000-000000000000'
+);
 
 -- 5. Crear el perfil público en la tabla users
 INSERT INTO public.users (
