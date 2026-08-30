@@ -52,20 +52,28 @@ class GenerateEventsReportUseCase(
         // Ordenamos alfabéticamente a los jugadores
         val sortedPlayers = allPlayerNames.sorted()
         
-        // Función para abreviar texto largo
+        val isPdf = format.lowercase() == "pdf"
+        
+        // Función para abreviar texto largo solo en PDF
         fun formatText(text: String, limit: Int = 8): String {
+            if (!isPdf) return text
             return if (text.length > limit) text.substring(0, limit - 1) + "." else text
         }
         
-        // Montamos las cabeceras: "Evento" + cada jugador (nombre partido en 2 líneas si tiene espacio)
+        // Montamos las cabeceras: "Evento" + cada jugador
         val headers = mutableListOf("Evento")
         sortedPlayers.forEach { player ->
-            // Cogemos como máximo las 2 primeras palabras
-            val parts = player.split(" ").take(2)
-            if (parts.size == 2) {
-                headers.add("${formatText(parts[0])}\n${formatText(parts[1])}")
+            if (isPdf) {
+                // Cogemos como máximo las 2 primeras palabras y las apilamos en PDF
+                val parts = player.split(" ").take(2)
+                if (parts.size == 2) {
+                    headers.add("${formatText(parts[0])}\n${formatText(parts[1])}")
+                } else {
+                    headers.add(formatText(parts.firstOrNull() ?: ""))
+                }
             } else {
-                headers.add(formatText(parts.firstOrNull() ?: ""))
+                // En CSV, nombre completo sin saltos de línea
+                headers.add(player)
             }
         }
         
@@ -78,9 +86,15 @@ class GenerateEventsReportUseCase(
         } else {
             for (event in events) {
                 // Columna 1: Evento
-                val dateStr = dateFormatter.formatTimestamp(event.date, "dd/MM/yy")
-                val eventName = formatText(event.type.name)
-                val eventRow = mutableListOf("$eventName\n($dateStr)")
+                val dateStr = dateFormatter.formatTimestamp(event.date, if (isPdf) "dd/MM/yy" else "dd/MM/yyyy HH:mm")
+                
+                val eventRow = mutableListOf<String>()
+                if (isPdf) {
+                    val eventName = formatText(event.type.name)
+                    eventRow.add("$eventName\n($dateStr)")
+                } else {
+                    eventRow.add("${event.type.name} ($dateStr)")
+                }
                 
                 // Columnas de jugadores
                 val eventAttendances = attendancesByEvent[event.id] ?: emptyList()
