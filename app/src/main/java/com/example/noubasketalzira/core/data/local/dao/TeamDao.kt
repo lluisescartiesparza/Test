@@ -13,6 +13,9 @@ interface TeamDao {
     @Query("SELECT * FROM teams ORDER BY name ASC")
     fun observeAllTeams(): Flow<List<TeamEntity>>
 
+    @Query("SELECT * FROM teams ORDER BY name ASC")
+    fun getAllTeams(): List<TeamEntity>
+
     @androidx.room.Upsert
     fun insertTeam(team: TeamEntity)
 

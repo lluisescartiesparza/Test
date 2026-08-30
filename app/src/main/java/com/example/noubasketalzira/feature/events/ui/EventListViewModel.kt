@@ -34,8 +34,13 @@ class EventListViewModel(
     val uiState: StateFlow<EventListState> = _uiState
 
     init {
-        val user = sessionManager.currentUser.value
-        val canManage = user?.role != null && user.role != UserRole.JUGADOR
+        val session = sessionManager.sessionState.value
+        val globalRole = session.user?.role
+        val teamRole = session.activeTeam?.role
+        val canManage = globalRole == UserRole.GERENCIA || 
+                        globalRole == UserRole.DIRECTOR_DEPORTIVO || 
+                        globalRole == UserRole.SUPERADMIN || 
+                        teamRole == "ENTRENADOR"
         _uiState.update { it.copy(canManageEvents = canManage) }
         
         viewModelScope.launch {
