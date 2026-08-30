@@ -113,7 +113,7 @@ class GenerateEventsReportUseCase(
         val filePath = if (format.lowercase() == "pdf") {
             exporter.exportPdf(title, headers, rows)
         } else {
-            val csvBuilder = java.lang.StringBuilder()
+            val csvBuilder = StringBuilder()
             csvBuilder.append(headers.joinToString(",")).append("\n")
             rows.forEach { row ->
                 // Clean commas to avoid breaking CSV format
