@@ -1,6 +1,8 @@
 package com.example.noubasketalzira.feature.events.data.repository
 
 import com.example.noubasketalzira.core.domain.scheduler.ISyncScheduler
+import com.example.noubasketalzira.core.domain.util.IDateFormatter
+import com.example.noubasketalzira.core.domain.util.IIdGenerator
 import com.example.noubasketalzira.feature.events.data.source.local.IEventLocalDataSource
 import com.example.noubasketalzira.feature.events.data.source.remote.IEventRemoteDataSource
 import com.example.noubasketalzira.feature.events.domain.model.Attendance
@@ -10,21 +12,16 @@ import com.example.noubasketalzira.feature.events.domain.model.EventType
 import com.example.noubasketalzira.feature.events.domain.repository.IEventRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
-
-// Wait, I should not use java.util.UUID or java.text.SimpleDateFormat here if I want strict KMP.
-// But we still need UUID. We can just use a random string or keep UUID until a multiplatform library is added.
-import java.util.UUID
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.Date
 
 class EventRepositoryImpl(
     private val localDataSource: IEventLocalDataSource,
     private val remoteDataSource: IEventRemoteDataSource,
-    private val syncScheduler: ISyncScheduler
+    private val syncScheduler: ISyncScheduler,
+    private val idGenerator: IIdGenerator,
+    private val dateFormatter: IDateFormatter
 ) : IEventRepository {
 
     override fun observeEvents(teamId: String): Flow<List<Event>> {
@@ -41,7 +38,7 @@ class EventRepositoryImpl(
         date: Long,
         description: String?
     ) {
-        val newEventId = UUID.randomUUID().toString()
+        val newEventId = idGenerator.generateUniqueId()
         val newEvent = Event(
             id = newEventId,
             teamId = teamId,
@@ -71,14 +68,14 @@ class EventRepositoryImpl(
             }
         }
         
-        syncScheduler.scheduleEventSync("INSERT_EVENT", newEventId)
+        syncScheduler.scheduleEventSync("insert", newEventId)
     }
 
     override suspend fun deleteEvent(eventId: String) {
         withContext(Dispatchers.IO) {
             localDataSource.deleteEvent(eventId)
         }
-        syncScheduler.scheduleEventSync("DELETE_EVENT", eventId)
+        syncScheduler.scheduleEventSync("delete", eventId)
     }
 
     override suspend fun updateAttendanceStatus(
@@ -94,9 +91,6 @@ class EventRepositoryImpl(
 
     override suspend fun markAllAs(eventId: String, status: AttendanceStatus) {
         withContext(Dispatchers.IO) {
-            // No tenemos teamId directamente, pero observeAttendance devuelve todos los miembros (gracias a la query JOIN en Room)
-            // Por lo que podemos observar momentaneamente o simplemente... wait, updateAllAttendanceStatus no servirá si faltan filas.
-            // Es mejor obtener todas las asistencias actuales, y forzarlas a upsert
             val currentAttendances = localDataSource.observeAttendance(eventId).first()
             val attendancesToUpsert = currentAttendances.map { att ->
                 Attendance(
@@ -119,12 +113,7 @@ class EventRepositoryImpl(
                 val remoteEvents = remoteDataSource.fetchEvents(teamId)
                 
                 remoteEvents.forEach { dto ->
-                    // Parse date here for now. Ideal KMP solution would use kotlinx-datetime
-                    val parsedDate = try {
-                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).parse(dto.date)?.time ?: System.currentTimeMillis()
-                    } catch (e: Exception) {
-                        System.currentTimeMillis()
-                    }
+                    val parsedDate = dateFormatter.parseIso8601ToTimestamp(dto.date)
 
                     localDataSource.insertEvent(Event(
                         id = dto.id,
@@ -148,7 +137,7 @@ class EventRepositoryImpl(
                     }
                 }
             } catch (e: Exception) {
-                println("Sync events failed: ${e.message}")
+                // Silently ignore sync errors for offline first
             }
         }
     }
