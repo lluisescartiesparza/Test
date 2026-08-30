@@ -39,8 +39,7 @@ INSERT INTO auth.identities (
     identity_data,
     provider,
     created_at,
-    updated_at,
-    email
+    updated_at
 )
 SELECT 
     '00000000-0000-0000-0000-000000000000',
@@ -49,8 +48,7 @@ SELECT
     format('{"sub":"%s","email":"%s"}', '00000000-0000-0000-0000-000000000000', 'lluisescartiesparza@gmail.com')::jsonb,
     'email',
     NOW(),
-    NOW(),
-    'lluisescartiesparza@gmail.com'
+    NOW()
 WHERE NOT EXISTS (
     SELECT 1 FROM auth.identities WHERE user_id = '00000000-0000-0000-0000-000000000000'
 );
