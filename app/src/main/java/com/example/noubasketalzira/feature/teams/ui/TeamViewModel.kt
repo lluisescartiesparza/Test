@@ -32,8 +32,8 @@ class TeamViewModel(
     }
 
     private fun hasManagementRole(): Boolean {
-        val user = sessionManager.currentUser.value
-        return user?.role == UserRole.GERENCIA || user?.role == UserRole.DIRECTOR_DEPORTIVO
+        val user = sessionManager.sessionState.value.user
+        return user?.role == UserRole.GERENCIA || user?.role == UserRole.DIRECTOR_DEPORTIVO || user?.role == UserRole.SUPERADMIN
     }
 
     fun createTeam(name: String, category: String) {

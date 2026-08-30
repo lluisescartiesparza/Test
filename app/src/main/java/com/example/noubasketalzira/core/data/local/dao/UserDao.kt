@@ -13,4 +13,10 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE id = :userId")
     fun getUserById(userId: String): UserEntity?
+
+    @Query("SELECT * FROM users ORDER BY fullName ASC")
+    fun observeAllUsers(): kotlinx.coroutines.flow.Flow<List<UserEntity>>
+
+    @Query("DELETE FROM users WHERE id = :userId")
+    fun deleteUser(userId: String)
 }

@@ -2,7 +2,6 @@ package com.example.noubasketalzira.core.di
 
 import androidx.room.Room
 import com.example.noubasketalzira.core.auth.ISessionManager
-import com.example.noubasketalzira.core.auth.MockSessionManager
 import com.example.noubasketalzira.core.data.local.AppDatabase
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
@@ -102,14 +101,29 @@ val appModule = module {
     factory { com.example.noubasketalzira.feature.events.domain.usecase.GenerateEventsReportUseCase(get(), get(), get(), get()) }
     
     // Auth
-    single<ISessionManager> { MockSessionManager() }
+    single<com.example.noubasketalzira.core.auth.IAuthDataSource> { 
+        com.example.noubasketalzira.core.auth.SupabaseAuthDataSource(get()) 
+    }
+    single<ISessionManager> { 
+        com.example.noubasketalzira.core.auth.SessionManagerImpl(androidContext(), get(), get(), get(), get()) 
+    }
+    
+    single<com.example.noubasketalzira.feature.users.data.repository.IUserRepository> { 
+        com.example.noubasketalzira.feature.users.data.repository.UserRepositoryImpl(get(), get()) 
+    }
     
     // ViewModels
     viewModel {
-        com.example.noubasketalzira.feature.teams.ui.TeamViewModel(get(), get(), get())
+        com.example.noubasketalzira.feature.auth.ui.LoginViewModel(get())
     }
     viewModel {
-        com.example.noubasketalzira.feature.events.ui.EventTeamSelectionViewModel(get(), get(), get(), get())
+        com.example.noubasketalzira.feature.auth.ui.OtpViewModel(get())
+    }
+    viewModel {
+        com.example.noubasketalzira.feature.users.ui.UserManagementViewModel(get())
+    }
+    viewModel {
+        com.example.noubasketalzira.feature.teams.ui.TeamViewModel(get(), get(), get())
     }
     viewModel { params ->
         com.example.noubasketalzira.feature.events.ui.EventListViewModel(params.get(), get(), get(), get())
