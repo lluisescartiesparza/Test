@@ -53,6 +53,12 @@ val appModule = module {
             "noubasket_db"
         ).build()
     }
+    
+    // Utilities
+    single<com.example.noubasketalzira.core.domain.util.IDateFormatter> { com.example.noubasketalzira.core.framework.android.util.AndroidDateFormatter() }
+    single<com.example.noubasketalzira.core.domain.util.IReportExporter> { com.example.noubasketalzira.core.framework.android.util.AndroidReportExporter(androidContext()) }
+    single<com.example.noubasketalzira.core.domain.util.IFileSharer> { com.example.noubasketalzira.core.framework.android.util.AndroidFileSharer(androidContext()) }
+
     single { get<AppDatabase>().teamDao() }
     single { get<AppDatabase>().teamMemberDao() }
     single { get<AppDatabase>().userDao() }
@@ -92,6 +98,9 @@ val appModule = module {
         EventRepositoryImpl(get(), get(), get(), get(), get())
     }
     
+    // UseCases
+    factory { com.example.noubasketalzira.feature.events.domain.usecase.GenerateEventsReportUseCase(get(), get(), get(), get()) }
+    
     // Auth
     single<ISessionManager> { MockSessionManager() }
     
@@ -103,7 +112,7 @@ val appModule = module {
         com.example.noubasketalzira.feature.events.ui.EventTeamSelectionViewModel(get(), get(), get(), get())
     }
     viewModel { params ->
-        com.example.noubasketalzira.feature.events.ui.EventListViewModel(params.get(), get(), get())
+        com.example.noubasketalzira.feature.events.ui.EventListViewModel(params.get(), get(), get(), get())
     }
     viewModel { params ->
         com.example.noubasketalzira.feature.events.ui.EventDetailViewModel(params.get(), get(), get())

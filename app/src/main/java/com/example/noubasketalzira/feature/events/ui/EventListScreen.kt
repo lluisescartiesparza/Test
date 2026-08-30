@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +38,16 @@ fun EventListScreen(
     val context = LocalContext.current
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Eventos del Equipo") }) },
+        topBar = { 
+            TopAppBar(
+                title = { Text("Eventos del Equipo") },
+                actions = {
+                    IconButton(onClick = { viewModel.setShowReportDialog(true) }) {
+                        Icon(Icons.Filled.Share, contentDescription = "Exportar Informe")
+                    }
+                }
+            ) 
+        },
         floatingActionButton = {
             if (uiState.canManageEvents) {
                 FloatingActionButton(onClick = { 
@@ -128,6 +138,25 @@ fun EventListScreen(
                 TextButton(onClick = { viewModel.dismissError() }) { Text("OK") }
             }
         )
+    }
+    if (uiState.showReportDialog) {
+        ReportFilterDialog(
+            onDismiss = { viewModel.setShowReportDialog(false) },
+            onExport = { format, type, fromDate, toDate ->
+                viewModel.generateReport(format, type, fromDate, toDate)
+            }
+        )
+    }
+
+    if (uiState.isGeneratingReport) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        }
     }
 }
 
@@ -241,6 +270,109 @@ fun CreateEventDialog(
                 },
                 enabled = datePickerState.selectedDateMillis != null && selectedHour != null
             ) { Text("Crear") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReportFilterDialog(
+    onDismiss: () -> Unit,
+    onExport: (format: String, type: EventType?, fromDate: Long?, toDate: Long?) -> Unit
+) {
+    var selectedType by remember { mutableStateOf<EventType?>(null) }
+    val fromDatePickerState = rememberDatePickerState()
+    val toDatePickerState = rememberDatePickerState()
+    
+    var showFromPicker by remember { mutableStateOf(false) }
+    var showToPicker by remember { mutableStateOf(false) }
+
+    if (showFromPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showFromPicker = false },
+            confirmButton = { TextButton(onClick = { showFromPicker = false }) { Text("OK") } },
+            dismissButton = { TextButton(onClick = { showFromPicker = false }) { Text("Cancelar") } }
+        ) { DatePicker(state = fromDatePickerState) }
+    }
+
+    if (showToPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showToPicker = false },
+            confirmButton = { TextButton(onClick = { showToPicker = false }) { Text("OK") } },
+            dismissButton = { TextButton(onClick = { showToPicker = false }) { Text("Cancelar") } }
+        ) { DatePicker(state = toDatePickerState) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Filtros del Informe") },
+        text = {
+            Column {
+                var expanded by remember { mutableStateOf(false) }
+                
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = when (selectedType) {
+                            null -> "Todos"
+                            EventType.ENTRENAMIENTO -> "Entrenamiento"
+                            EventType.PARTIDO -> "Partido"
+                        },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Tipo de Evento") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Todos") },
+                            onClick = { selectedType = null; expanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Entrenamiento") },
+                            onClick = { selectedType = EventType.ENTRENAMIENTO; expanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Partido") },
+                            onClick = { selectedType = EventType.PARTIDO; expanded = false }
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Desde:")
+                Button(onClick = { showFromPicker = true }, modifier = Modifier.fillMaxWidth()) {
+                    val ms = fromDatePickerState.selectedDateMillis
+                    Text(if (ms != null) SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(ms)) else "Seleccionar fecha inicial")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Hasta:")
+                Button(onClick = { showToPicker = true }, modifier = Modifier.fillMaxWidth()) {
+                    val ms = toDatePickerState.selectedDateMillis
+                    Text(if (ms != null) SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(ms)) else "Seleccionar fecha final")
+                }
+            }
+        },
+        confirmButton = {
+            Row {
+                Button(onClick = { 
+                    onExport("pdf", selectedType, fromDatePickerState.selectedDateMillis, toDatePickerState.selectedDateMillis) 
+                }, modifier = Modifier.padding(end = 8.dp)) { Text("PDF") }
+                
+                Button(onClick = { 
+                    onExport("csv", selectedType, fromDatePickerState.selectedDateMillis, toDatePickerState.selectedDateMillis) 
+                }) { Text("CSV") }
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancelar") }
