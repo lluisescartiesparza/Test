@@ -17,33 +17,43 @@ class GenerateEventsReportUseCase(
         val events = repository.observeEvents(teamId).first()
         
         // 2. Preparar los datos
-        val headers = listOf("Fecha", "Tipo", "Descripción", "Jugador", "Estado")
-        val rows = mutableListOf<List<String>>()
+        // Extraemos las asistencias de cada evento
+        val attendancesByEvent = mutableMapOf<String, List<com.example.noubasketalzira.feature.events.domain.model.Attendance>>()
+        val allPlayerNames = mutableSetOf<String>()
         
         for (event in events) {
             val attendances = repository.observeAttendance(event.id).first()
-            val dateStr = dateFormatter.formatTimestamp(event.date, "dd/MM/yyyy HH:mm")
-            
-            if (attendances.isEmpty()) {
-                // Si no hay jugadores, añadir una fila vacía para que conste el evento
-                rows.add(listOf(
-                    dateStr,
-                    event.type.name,
-                    event.description ?: "-",
-                    "Sin jugadores",
-                    "-"
-                ))
-            } else {
-                // Desglose por jugador
-                for (attendance in attendances) {
-                    rows.add(listOf(
-                        dateStr,
-                        event.type.name,
-                        event.description ?: "-",
-                        attendance.userName,
-                        attendance.status.name
-                    ))
+            attendancesByEvent[event.id] = attendances
+            attendances.forEach { allPlayerNames.add(it.userName) }
+        }
+        
+        // Ordenamos alfabéticamente a los jugadores
+        val sortedPlayers = allPlayerNames.sorted()
+        
+        // Montamos las cabeceras: "Jugador" + cada evento en formato TIPO (dd/MM/yy)
+        val headers = mutableListOf("Jugador")
+        events.forEach { event ->
+            // Usamos formato yy (año a 2 dígitos) según el ejemplo del usuario (01/10/26)
+            val dateStr = dateFormatter.formatTimestamp(event.date, "dd/MM/yy")
+            headers.add("${event.type.name} ($dateStr)")
+        }
+        
+        // Montamos las filas (una por jugador)
+        val rows = mutableListOf<List<String>>()
+        if (sortedPlayers.isEmpty()) {
+             // Si no hay jugadores, añadir una fila vacía para que conste algo
+             val emptyRow = mutableListOf("Sin jugadores")
+             events.forEach { emptyRow.add("-") }
+             rows.add(emptyRow)
+        } else {
+            for (player in sortedPlayers) {
+                val playerRow = mutableListOf(player)
+                for (event in events) {
+                    val eventAttendances = attendancesByEvent[event.id] ?: emptyList()
+                    val playerAttendance = eventAttendances.find { it.userName == player }
+                    playerRow.add(playerAttendance?.status?.name ?: "-")
                 }
+                rows.add(playerRow)
             }
         }
         

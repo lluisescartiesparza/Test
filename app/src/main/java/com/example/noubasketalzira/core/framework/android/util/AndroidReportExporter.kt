@@ -18,7 +18,7 @@ class AndroidReportExporter(
     override suspend fun exportPdf(title: String, headers: List<String>, rows: List<List<String>>): String {
         return withContext(Dispatchers.IO) {
             val document = PdfDocument()
-            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 at 72 PPI
+            val pageInfo = PdfDocument.PageInfo.Builder(842, 595, 1).create() // A4 Landscape at 72 PPI
             
             var page = document.startPage(pageInfo)
             var canvas = page.canvas
@@ -32,20 +32,22 @@ class AndroidReportExporter(
                 isFakeBoldText = true
             }
             
+            val colsCount = headers.size.coerceAtLeast(1)
+            val dynamicTextSize = if (colsCount > 5) 8f else 10f
             val headerPaint = Paint().apply {
                 color = Color.BLACK
-                textSize = 12f
+                textSize = dynamicTextSize + 1f
                 isFakeBoldText = true
             }
             
             val textPaint = Paint().apply {
                 color = Color.DKGRAY
-                textSize = 10f
+                textSize = dynamicTextSize
             }
 
             var currentY = 50f
             val marginX = 50f
-            val columnWidths = calculateColumnWidths(headers, rows, 495f) // 595 - 100 margin
+            val columnWidths = calculateColumnWidths(headers, rows, 742f) // 842 - 100 margin
             
             // Draw title
             canvas.drawText(title, marginX, currentY, titlePaint)
@@ -62,7 +64,7 @@ class AndroidReportExporter(
             // Draw rows
             rows.forEach { row ->
                 // Check if we need a new page
-                if (currentY > 800f) {
+                if (currentY > 550f) {
                     document.finishPage(page)
                     page = document.startPage(pageInfo)
                     canvas = page.canvas
