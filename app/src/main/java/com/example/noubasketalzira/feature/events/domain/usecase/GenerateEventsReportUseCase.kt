@@ -17,23 +17,34 @@ class GenerateEventsReportUseCase(
         val events = repository.observeEvents(teamId).first()
         
         // 2. Preparar los datos
-        val headers = listOf("Fecha", "Tipo", "Descripción", "Asistencia")
+        val headers = listOf("Fecha", "Tipo", "Descripción", "Jugador", "Estado")
         val rows = mutableListOf<List<String>>()
         
         for (event in events) {
             val attendances = repository.observeAttendance(event.id).first()
-            val confirmedCount = attendances.count { it.status.name == "CONFIRMADO" }
-            val totalCount = attendances.size
-            
-            // Format date basic
             val dateStr = dateFormatter.formatTimestamp(event.date, "dd/MM/yyyy HH:mm")
             
-            rows.add(listOf(
-                dateStr,
-                event.type.name,
-                event.description ?: "-",
-                "$confirmedCount / $totalCount"
-            ))
+            if (attendances.isEmpty()) {
+                // Si no hay jugadores, añadir una fila vacía para que conste el evento
+                rows.add(listOf(
+                    dateStr,
+                    event.type.name,
+                    event.description ?: "-",
+                    "Sin jugadores",
+                    "-"
+                ))
+            } else {
+                // Desglose por jugador
+                for (attendance in attendances) {
+                    rows.add(listOf(
+                        dateStr,
+                        event.type.name,
+                        event.description ?: "-",
+                        attendance.userName,
+                        attendance.status.name
+                    ))
+                }
+            }
         }
         
         val title = "Informe de Eventos"
