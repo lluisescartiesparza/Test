@@ -32,6 +32,10 @@ fun EventListScreen(
     onEventSelected: (String) -> Unit,
     viewModel: EventListViewModel = koinViewModel { parametersOf(teamId) }
 ) {
+    LaunchedEffect(teamId) {
+        viewModel.setTeamId(teamId)
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     var eventToDelete by remember { mutableStateOf<String?>(null) }

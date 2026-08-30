@@ -14,6 +14,9 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE id = :userId")
     fun getUserById(userId: String): UserEntity?
 
+    @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
+    fun getUserByEmail(email: String): UserEntity?
+
     @Query("SELECT * FROM users ORDER BY fullName ASC")
     fun observeAllUsers(): kotlinx.coroutines.flow.Flow<List<UserEntity>>
 

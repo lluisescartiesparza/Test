@@ -21,13 +21,24 @@ fun UserManagementScreen(
     onBack: () -> Unit
 ) {
     val users by viewModel.users.collectAsState()
+    val error by viewModel.error.collectAsState()
     
     var showCreateDialog by remember { mutableStateOf(false) }
     var newEmail by remember { mutableStateOf("") }
     var newName by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(UserRole.JUGADOR) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(error) {
+        if (error != null) {
+            snackbarHostState.showSnackbar(error ?: "")
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Añadir Usuario")

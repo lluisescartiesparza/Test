@@ -66,7 +66,11 @@ class UserRepositoryImpl(
     override suspend fun syncUsers() {
         withContext(Dispatchers.IO) {
             try {
-                val remoteUsers = supabase.postgrest["users"].select().decodeList<UserDto>()
+                android.util.Log.e("NouBasketAuth", "syncUsers: Fetching from Supabase")
+                val remoteUsers = supabase.postgrest["users"].select(
+                    columns = io.github.jan.supabase.postgrest.query.Columns.list("id,email,full_name,role")
+                ).decodeList<UserDto>()
+                android.util.Log.e("NouBasketAuth", "syncUsers: Fetched ${remoteUsers.size} users")
                 remoteUsers.forEach { dto ->
                     userDao.insertUser(
                         UserEntity(
@@ -77,7 +81,9 @@ class UserRepositoryImpl(
                         )
                     )
                 }
+                android.util.Log.e("NouBasketAuth", "syncUsers: Insert completed")
             } catch (e: Exception) {
+                android.util.Log.e("NouBasketAuth", "syncUsers: FAILED", e)
                 // Ignore sync errors when offline
             }
         }

@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class UserManagementViewModel(
     private val userRepository: IUserRepository
@@ -21,21 +23,36 @@ class UserManagementViewModel(
             initialValue = emptyList()
         )
 
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
     init {
         viewModelScope.launch {
             userRepository.syncUsers()
         }
     }
 
+    fun clearError() {
+        _error.value = null
+    }
+
     fun createUser(email: String, fullName: String, role: UserRole) {
         viewModelScope.launch {
-            userRepository.createUser(email, fullName, role)
+            try {
+                userRepository.createUser(email, fullName, role)
+            } catch (e: Exception) {
+                _error.value = "No se ha podido crear el usuario. Es posible que el correo electrónico ya esté registrado."
+            }
         }
     }
 
     fun deleteUser(userId: String) {
         viewModelScope.launch {
-            userRepository.deleteUser(userId)
+            try {
+                userRepository.deleteUser(userId)
+            } catch (e: Exception) {
+                _error.value = "Error al eliminar el usuario."
+            }
         }
     }
 }

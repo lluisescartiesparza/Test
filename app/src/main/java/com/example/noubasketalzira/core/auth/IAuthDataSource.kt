@@ -44,9 +44,7 @@ class SupabaseAuthDataSource(
 
     override suspend fun sendOtp(email: String) {
         withContext(Dispatchers.IO) {
-            supabase.auth.signInWith(OTP) {
-                this.email = email
-            }
+            supabase.auth.resetPasswordForEmail(email)
         }
     }
 
@@ -55,7 +53,7 @@ class SupabaseAuthDataSource(
             try {
                 // 1. Verify OTP
                 supabase.auth.verifyEmailOtp(
-                    type = io.github.jan.supabase.auth.OtpType.Email.MAGIC_LINK,
+                    type = io.github.jan.supabase.auth.OtpType.Email.RECOVERY,
                     email = email,
                     token = otp
                 )

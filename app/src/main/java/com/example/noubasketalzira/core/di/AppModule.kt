@@ -32,6 +32,9 @@ import com.example.noubasketalzira.feature.teams.data.source.remote.ITeamRemoteD
 import com.example.noubasketalzira.feature.teams.data.source.remote.TeamRemoteDataSourceImpl
 import com.example.noubasketalzira.feature.teams.domain.repository.ITeamRepository
 
+import kotlinx.serialization.json.Json
+import io.github.jan.supabase.serializer.KotlinXSerializer
+
 val appModule = module {
     // Supabase Client
     single<SupabaseClient> {
@@ -39,6 +42,7 @@ val appModule = module {
             supabaseUrl = "https://hppxhwihxckexlayjejd.supabase.co",
             supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhwcHhod2loeGNrZXhsYXlqZWpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0MDcxNzgsImV4cCI6MjEwMjk4MzE3OH0.cDBZjMAUW6qnzYGJPz2Sp7rw3lUCt0K0PebZa_OZ-a0"
         ) {
+            defaultSerializer = KotlinXSerializer(Json { ignoreUnknownKeys = true })
             install(Postgrest)
             install(Auth)
         }
@@ -105,7 +109,7 @@ val appModule = module {
         com.example.noubasketalzira.core.auth.SupabaseAuthDataSource(get()) 
     }
     single<ISessionManager> { 
-        com.example.noubasketalzira.core.auth.SessionManagerImpl(androidContext(), get(), get(), get(), get()) 
+        com.example.noubasketalzira.core.auth.SessionManagerImpl(androidContext(), get(), get(), get(), get(), get()) 
     }
     
     single<com.example.noubasketalzira.feature.users.data.repository.IUserRepository> { 
