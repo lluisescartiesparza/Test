@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,7 +38,16 @@ fun EventListScreen(
     val context = LocalContext.current
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Eventos del Equipo") }) },
+        topBar = { 
+            TopAppBar(
+                title = { Text("Eventos del Equipo") },
+                actions = {
+                    IconButton(onClick = { viewModel.setShowReportDialog(true) }) {
+                        Icon(Icons.Filled.Share, contentDescription = "Exportar Informe")
+                    }
+                }
+            ) 
+        },
         floatingActionButton = {
             if (uiState.canManageEvents) {
                 FloatingActionButton(onClick = { 
@@ -128,6 +138,30 @@ fun EventListScreen(
                 TextButton(onClick = { viewModel.dismissError() }) { Text("OK") }
             }
         )
+    }
+    if (uiState.showReportDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.setShowReportDialog(false) },
+            title = { Text("Generar Informe") },
+            text = { Text("Selecciona el formato en el que deseas exportar el listado de eventos y asistencias.") },
+            confirmButton = {
+                Button(onClick = { viewModel.generateReport("pdf") }) { Text("PDF") }
+            },
+            dismissButton = {
+                Button(onClick = { viewModel.generateReport("csv") }) { Text("CSV") }
+            }
+        )
+    }
+
+    if (uiState.isGeneratingReport) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        }
     }
 }
 

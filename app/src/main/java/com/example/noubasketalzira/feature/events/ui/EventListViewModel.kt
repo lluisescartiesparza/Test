@@ -12,17 +12,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import com.example.noubasketalzira.feature.events.domain.usecase.GenerateEventsReportUseCase
+
 data class EventListState(
     val events: List<Event> = emptyList(),
     val canManageEvents: Boolean = false,
     val hasPlayers: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isGeneratingReport: Boolean = false,
+    val showReportDialog: Boolean = false
 )
 
 class EventListViewModel(
     private val teamId: String,
     private val repository: IEventRepository,
-    private val sessionManager: ISessionManager
+    private val sessionManager: ISessionManager,
+    private val generateReportUseCase: GenerateEventsReportUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EventListState())
@@ -71,5 +76,22 @@ class EventListViewModel(
     
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun setShowReportDialog(show: Boolean) {
+        _uiState.update { it.copy(showReportDialog = show) }
+    }
+
+    fun generateReport(format: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isGeneratingReport = true, showReportDialog = false) }
+            try {
+                generateReportUseCase(teamId, format)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Error al generar informe: ${e.localizedMessage}") }
+            } finally {
+                _uiState.update { it.copy(isGeneratingReport = false) }
+            }
+        }
     }
 }
