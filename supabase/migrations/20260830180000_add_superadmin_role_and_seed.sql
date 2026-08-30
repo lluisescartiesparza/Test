@@ -34,19 +34,23 @@ INSERT INTO auth.users (
 -- 4. Enlazar la identidad de email en auth.identities
 INSERT INTO auth.identities (
     id,
+    provider_id,
     user_id,
     identity_data,
     provider,
     created_at,
-    updated_at
+    updated_at,
+    email
 )
 SELECT 
+    '00000000-0000-0000-0000-000000000000',
     '00000000-0000-0000-0000-000000000000',
     '00000000-0000-0000-0000-000000000000',
     format('{"sub":"%s","email":"%s"}', '00000000-0000-0000-0000-000000000000', 'lluisescartiesparza@gmail.com')::jsonb,
     'email',
     NOW(),
-    NOW()
+    NOW(),
+    'lluisescartiesparza@gmail.com'
 WHERE NOT EXISTS (
     SELECT 1 FROM auth.identities WHERE user_id = '00000000-0000-0000-0000-000000000000'
 );
