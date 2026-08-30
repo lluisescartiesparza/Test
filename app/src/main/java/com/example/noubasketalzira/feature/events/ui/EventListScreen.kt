@@ -311,14 +311,41 @@ fun ReportFilterDialog(
         title = { Text("Filtros del Informe") },
         text = {
             Column {
-                Text("Tipo de Evento:")
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = selectedType == null, onClick = { selectedType = null })
-                    Text("Todos", modifier = Modifier.padding(end = 8.dp))
-                    RadioButton(selected = selectedType == EventType.ENTRENAMIENTO, onClick = { selectedType = EventType.ENTRENAMIENTO })
-                    Text("Entrena.", modifier = Modifier.padding(end = 8.dp))
-                    RadioButton(selected = selectedType == EventType.PARTIDO, onClick = { selectedType = EventType.PARTIDO })
-                    Text("Partido")
+                var expanded by remember { mutableStateOf(false) }
+                
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = when (selectedType) {
+                            null -> "Todos"
+                            EventType.ENTRENAMIENTO -> "Entrenamiento"
+                            EventType.PARTIDO -> "Partido"
+                        },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Tipo de Evento") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Todos") },
+                            onClick = { selectedType = null; expanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Entrenamiento") },
+                            onClick = { selectedType = EventType.ENTRENAMIENTO; expanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Partido") },
+                            onClick = { selectedType = EventType.PARTIDO; expanded = false }
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
