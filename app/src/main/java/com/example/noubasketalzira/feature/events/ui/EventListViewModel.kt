@@ -82,11 +82,16 @@ class EventListViewModel(
         _uiState.update { it.copy(showReportDialog = show) }
     }
 
-    fun generateReport(format: String) {
+    fun generateReport(
+        format: String,
+        eventType: EventType? = null,
+        fromDateMillis: Long? = null,
+        toDateMillis: Long? = null
+    ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isGeneratingReport = true, showReportDialog = false) }
             try {
-                generateReportUseCase(teamId, format)
+                generateReportUseCase(teamId, format, eventType, fromDateMillis, toDateMillis)
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Error al generar informe: ${e.localizedMessage}") }
             } finally {

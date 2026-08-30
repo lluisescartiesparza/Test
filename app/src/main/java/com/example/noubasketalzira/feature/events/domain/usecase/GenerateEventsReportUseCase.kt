@@ -6,15 +6,37 @@ import com.example.noubasketalzira.core.domain.util.IReportExporter
 import com.example.noubasketalzira.feature.events.domain.repository.IEventRepository
 import kotlinx.coroutines.flow.first
 
+import com.example.noubasketalzira.feature.events.domain.model.EventType
+
 class GenerateEventsReportUseCase(
     private val repository: IEventRepository,
     private val exporter: IReportExporter,
     private val fileSharer: IFileSharer,
     private val dateFormatter: IDateFormatter
 ) {
-    suspend operator fun invoke(teamId: String, format: String) {
+    suspend operator fun invoke(
+        teamId: String, 
+        format: String,
+        eventType: EventType? = null,
+        fromDateMillis: Long? = null,
+        toDateMillis: Long? = null
+    ) {
         // 1. Obtener la foto actual de la base de datos local
-        val events = repository.observeEvents(teamId).first()
+        var events = repository.observeEvents(teamId).first()
+        
+        // Aplicar filtros
+        if (eventType != null) {
+            events = events.filter { it.type == eventType }
+        }
+        if (fromDateMillis != null) {
+            events = events.filter { it.date >= fromDateMillis }
+        }
+        if (toDateMillis != null) {
+            events = events.filter { it.date <= toDateMillis }
+        }
+        
+        // Ordenar más viejos arriba (ascendente por fecha)
+        events = events.sortedBy { it.date }
         
         // 2. Preparar los datos
         // Extraemos las asistencias de cada evento
@@ -38,11 +60,12 @@ class GenerateEventsReportUseCase(
         // Montamos las cabeceras: "Evento" + cada jugador (nombre partido en 2 líneas si tiene espacio)
         val headers = mutableListOf("Evento")
         sortedPlayers.forEach { player ->
-            val parts = player.split(" ", limit = 2)
+            // Cogemos como máximo las 2 primeras palabras
+            val parts = player.split(" ").take(2)
             if (parts.size == 2) {
                 headers.add("${formatText(parts[0])}\n${formatText(parts[1])}")
             } else {
-                headers.add(formatText(player))
+                headers.add(formatText(parts.firstOrNull() ?: ""))
             }
         }
         
