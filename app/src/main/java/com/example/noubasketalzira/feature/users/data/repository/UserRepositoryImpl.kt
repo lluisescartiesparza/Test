@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
+import com.example.noubasketalzira.core.domain.util.IIdGenerator
+
 @Serializable
 data class UserDto(
     val id: String,
@@ -23,7 +25,8 @@ data class UserDto(
 
 class UserRepositoryImpl(
     private val userDao: UserDao,
-    private val supabase: SupabaseClient
+    private val supabase: SupabaseClient,
+    private val idGenerator: IIdGenerator
 ) : IUserRepository {
 
     override fun observeUsers(): Flow<List<User>> {
@@ -34,14 +37,8 @@ class UserRepositoryImpl(
 
     override suspend fun createUser(email: String, fullName: String, role: UserRole) {
         withContext(Dispatchers.IO) {
-            // Note: In a real app, you would use Supabase Admin API to create the auth user
-            // and trigger an invite email. Since Admin API shouldn't be on the client,
-            // we will insert the profile into public.users and rely on an edge function 
-            // or trigger to handle the auth side, or we just insert the public profile.
-            // For now, we simulate inserting into public.users.
-            
             val dto = UserDto(
-                id = java.util.UUID.randomUUID().toString(),
+                id = idGenerator.generateUniqueId(),
                 email = email,
                 full_name = fullName,
                 role = role.name
@@ -66,11 +63,10 @@ class UserRepositoryImpl(
     override suspend fun syncUsers() {
         withContext(Dispatchers.IO) {
             try {
-                android.util.Log.e("NouBasketAuth", "syncUsers: Fetching from Supabase")
                 val remoteUsers = supabase.postgrest["users"].select(
                     columns = io.github.jan.supabase.postgrest.query.Columns.list("id,email,full_name,role")
                 ).decodeList<UserDto>()
-                android.util.Log.e("NouBasketAuth", "syncUsers: Fetched ${remoteUsers.size} users")
+                
                 remoteUsers.forEach { dto ->
                     userDao.insertUser(
                         UserEntity(
@@ -81,9 +77,7 @@ class UserRepositoryImpl(
                         )
                     )
                 }
-                android.util.Log.e("NouBasketAuth", "syncUsers: Insert completed")
             } catch (e: Exception) {
-                android.util.Log.e("NouBasketAuth", "syncUsers: FAILED", e)
                 // Ignore sync errors when offline
             }
         }

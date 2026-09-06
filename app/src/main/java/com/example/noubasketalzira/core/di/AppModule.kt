@@ -113,7 +113,7 @@ val appModule = module {
     }
     
     single<com.example.noubasketalzira.feature.users.data.repository.IUserRepository> { 
-        com.example.noubasketalzira.feature.users.data.repository.UserRepositoryImpl(get(), get()) 
+        com.example.noubasketalzira.feature.users.data.repository.UserRepositoryImpl(get(), get(), get()) 
     }
     
     // ViewModels
