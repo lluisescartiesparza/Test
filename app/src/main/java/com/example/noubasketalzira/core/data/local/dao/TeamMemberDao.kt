@@ -15,4 +15,10 @@ interface TeamMemberDao {
 
     @androidx.room.Query("SELECT * FROM team_members WHERE userId = :userId")
     fun getMembersByUserId(userId: String): List<TeamMemberEntity>
+    
+    @androidx.room.Query("SELECT * FROM team_members WHERE teamId = :teamId")
+    fun observeMembersByTeamId(teamId: String): kotlinx.coroutines.flow.Flow<List<TeamMemberEntity>>
+    
+    @androidx.room.Query("DELETE FROM team_members WHERE teamId = :teamId AND userId = :userId")
+    fun deleteTeamMember(teamId: String, userId: String)
 }

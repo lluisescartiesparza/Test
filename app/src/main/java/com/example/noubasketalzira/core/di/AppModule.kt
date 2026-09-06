@@ -130,6 +130,9 @@ val appModule = module {
         com.example.noubasketalzira.feature.teams.ui.TeamViewModel(get(), get(), get(), get())
     }
     viewModel { params ->
+        com.example.noubasketalzira.feature.teams.ui.TeamDetailViewModel(params.get(), get(), get())
+    }
+    viewModel { params ->
         com.example.noubasketalzira.feature.events.ui.EventListViewModel(params.get(), get(), get(), get())
     }
     viewModel { params ->

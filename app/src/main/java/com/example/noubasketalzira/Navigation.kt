@@ -78,6 +78,15 @@ fun MainNavigation() {
 
                     composable("teams") {
                         com.example.noubasketalzira.feature.teams.ui.TeamScreen(
+                            onNavigateToTeamDetail = { teamId -> navController.navigate("teamDetail/$teamId") },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable("teamDetail/{teamId}") { backStackEntry ->
+                        val teamId = backStackEntry.arguments?.getString("teamId") ?: ""
+                        com.example.noubasketalzira.feature.teams.ui.TeamDetailScreen(
+                            teamId = teamId,
                             onBack = { navController.popBackStack() }
                         )
                     }

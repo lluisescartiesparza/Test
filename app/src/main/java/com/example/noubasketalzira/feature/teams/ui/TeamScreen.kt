@@ -3,6 +3,10 @@
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -11,20 +15,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.noubasketalzira.core.domain.model.User
-import com.example.noubasketalzira.feature.teams.domain.model.TeamRole
 import com.example.noubasketalzira.feature.teams.domain.model.Team
-import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TeamScreen(
     viewModel: TeamViewModel = koinViewModel(),
+    onNavigateToTeamDetail: (String) -> Unit,
     onBack: () -> Unit
 ) {
     val teams by viewModel.teams.collectAsState()
-    val users by viewModel.users.collectAsState()
     val canManageTeams by viewModel.canManageTeams.collectAsState()
     
     val snackbarHostState = androidx.compose.runtime.remember { SnackbarHostState() }
@@ -34,14 +35,15 @@ fun TeamScreen(
     var newTeamCategory by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
     var teamToDelete by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Team?>(null) }
     
-    var teamToAssignMember by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Team?>(null) }
-    var selectedUser by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<User?>(null) }
-    var selectedTeamRole by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(TeamRole.JUGADOR) }
-    var showUserDropdown by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    var showRoleDropdown by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            if (canManageTeams) {
+                FloatingActionButton(onClick = { showCreateDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Añadir Equipo")
+                }
+            }
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -62,50 +64,34 @@ fun TeamScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (canManageTeams) {
-                Button(
-                    onClick = { showCreateDialog = true },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Crear Equipo")
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(teams) { team ->
                     Card(
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp)
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = team.name, style = MaterialTheme.typography.titleMedium)
-                            Text(text = "Categoría: ${team.category ?: "N/A"}", style = MaterialTheme.typography.bodyMedium)
-                            
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = team.name, style = MaterialTheme.typography.titleMedium)
+                                Text(text = "Categoría: ${team.category ?: "N/A"}", style = MaterialTheme.typography.bodyMedium)
+                            }
                             
                             if (canManageTeams) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Button(onClick = { 
-                                        teamToAssignMember = team
-                                        selectedUser = users.firstOrNull()
-                                        selectedTeamRole = TeamRole.JUGADOR
-                                    }) {
-                                        Text("Añadir Miembro")
+                                Row {
+                                    IconButton(onClick = { onNavigateToTeamDetail(team.id) }) {
+                                        Icon(Icons.Default.Edit, contentDescription = "Editar Equipo")
                                     }
-                                    Button(
-                                        onClick = { teamToDelete = team },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                    ) {
-                                        Text("Borrar")
+                                    IconButton(onClick = { teamToDelete = team }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Borrar Equipo", tint = MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }
@@ -173,90 +159,6 @@ fun TeamScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { teamToDelete = null }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
-        }
-        
-        teamToAssignMember?.let { team ->
-            AlertDialog(
-                onDismissRequest = { teamToAssignMember = null },
-                title = { Text("Añadir miembro a ${team.name}") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ExposedDropdownMenuBox(
-                            expanded = showUserDropdown,
-                            onExpandedChange = { showUserDropdown = !showUserDropdown }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedUser?.fullName ?: "Seleccionar Usuario",
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Usuario") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showUserDropdown) },
-                                modifier = Modifier.menuAnchor().fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = showUserDropdown,
-                                onDismissRequest = { showUserDropdown = false }
-                            ) {
-                                users.forEach { user ->
-                                    DropdownMenuItem(
-                                        text = { Text("${user.fullName} (${user.email})") },
-                                        onClick = { 
-                                            selectedUser = user
-                                            showUserDropdown = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        
-                        ExposedDropdownMenuBox(
-                            expanded = showRoleDropdown,
-                            onExpandedChange = { showRoleDropdown = !showRoleDropdown }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedTeamRole.name,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Rol en el equipo") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showRoleDropdown) },
-                                modifier = Modifier.menuAnchor().fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = showRoleDropdown,
-                                onDismissRequest = { showRoleDropdown = false }
-                            ) {
-                                TeamRole.values().forEach { role ->
-                                    DropdownMenuItem(
-                                        text = { Text(role.name) },
-                                        onClick = { 
-                                            selectedTeamRole = role
-                                            showRoleDropdown = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            selectedUser?.let {
-                                viewModel.assignMember(team.id, it.id, selectedTeamRole)
-                                teamToAssignMember = null
-                            }
-                        },
-                        enabled = selectedUser != null
-                    ) {
-                        Text("Asignar")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { teamToAssignMember = null }) {
                         Text("Cancelar")
                     }
                 }

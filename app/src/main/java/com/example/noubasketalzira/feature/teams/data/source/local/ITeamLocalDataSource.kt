@@ -8,5 +8,7 @@ interface ITeamLocalDataSource {
     suspend fun insertTeam(team: Team)
     suspend fun deleteTeam(teamId: String)
     suspend fun insertTeamMember(teamId: String, userId: String, role: String)
+    suspend fun deleteTeamMember(teamId: String, userId: String)
+    fun observeTeamMembers(teamId: String): Flow<List<com.example.noubasketalzira.feature.teams.domain.model.TeamMember>>
     suspend fun insertUser(id: String, email: String, fullName: String, role: String)
 }

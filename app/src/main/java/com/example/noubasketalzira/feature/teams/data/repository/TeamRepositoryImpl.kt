@@ -48,6 +48,16 @@ class TeamRepositoryImpl(
         }
     }
 
+    override suspend fun removeMember(teamId: String, userId: String) {
+        withContext(Dispatchers.IO) {
+            localDataSource.deleteTeamMember(teamId, userId)
+        }
+    }
+
+    override fun observeTeamMembers(teamId: String): Flow<List<com.example.noubasketalzira.feature.teams.domain.model.TeamMember>> {
+        return localDataSource.observeTeamMembers(teamId)
+    }
+
     override suspend fun syncTeams() {
         withContext(Dispatchers.IO) {
             try {
