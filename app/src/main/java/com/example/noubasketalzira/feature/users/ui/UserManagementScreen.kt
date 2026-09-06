@@ -113,16 +113,33 @@ fun UserManagementScreen(
                             label = { Text("Email") },
                             singleLine = true
                         )
-                        Text("Rol Global:", modifier = Modifier.padding(top = 8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            UserRole.values().forEach { role ->
-                                if (role != UserRole.SUPERADMIN) { // No permitir crear SUPERADMIN por UI
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        RadioButton(
-                                            selected = selectedRole == role,
-                                            onClick = { selectedRole = role }
+                        var expanded by remember { mutableStateOf(false) }
+                        
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = !expanded }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedRole.name,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Rol Global") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                UserRole.values().forEach { role ->
+                                    if (role != UserRole.SUPERADMIN) { // No permitir crear SUPERADMIN por UI
+                                        DropdownMenuItem(
+                                            text = { Text(role.name) },
+                                            onClick = { 
+                                                selectedRole = role
+                                                expanded = false
+                                            }
                                         )
-                                        Text(text = role.name, style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
                             }
