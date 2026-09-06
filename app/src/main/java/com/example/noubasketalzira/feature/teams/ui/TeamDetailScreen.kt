@@ -24,6 +24,10 @@ fun TeamDetailScreen(
     viewModel: TeamDetailViewModel = koinViewModel { parametersOf(teamId) },
     onBack: () -> Unit
 ) {
+    LaunchedEffect(teamId) {
+        viewModel.setTeamId(teamId)
+    }
+
     val members by viewModel.members.collectAsState()
     val allUsers by viewModel.allUsers.collectAsState()
     
