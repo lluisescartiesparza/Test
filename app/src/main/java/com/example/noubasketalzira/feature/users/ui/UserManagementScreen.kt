@@ -27,6 +27,7 @@ fun UserManagementScreen(
     
     var showCreateDialog by remember { mutableStateOf(false) }
     var userToEdit by remember { mutableStateOf<User?>(null) }
+    var userToDelete by remember { mutableStateOf<String?>(null) }
     var newEmail by remember { mutableStateOf("") }
     var newName by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(UserRole.JUGADOR) }
@@ -106,7 +107,7 @@ fun UserManagementScreen(
                                 }) {
                                     Icon(Icons.Default.Edit, contentDescription = "Editar")
                                 }
-                                IconButton(onClick = { viewModel.deleteUser(user.id) }) {
+                                IconButton(onClick = { userToDelete = user.id }) {
                                     Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
                                 }
                             }
@@ -185,6 +186,30 @@ fun UserManagementScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showCreateDialog = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        if (userToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { userToDelete = null },
+                title = { Text("Eliminar Usuario") },
+                text = { Text("¿Estás seguro de que quieres eliminar este usuario? Esta acción no se puede deshacer.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.deleteUser(userToDelete!!)
+                            userToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Eliminar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { userToDelete = null }) {
                         Text("Cancelar")
                     }
                 }
