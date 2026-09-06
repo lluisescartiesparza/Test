@@ -1,4 +1,4 @@
-package com.example.noubasketalzira
+﻿package com.example.noubasketalzira
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +19,8 @@ import com.example.noubasketalzira.core.auth.ISessionManager
 import com.example.noubasketalzira.core.ui.MainScaffold
 import com.example.noubasketalzira.feature.welcome.ui.WelcomeScreen
 import org.koin.compose.koinInject
+import org.koin.androidx.compose.koinViewModel
+import com.example.noubasketalzira.feature.teams.ui.TeamViewModel
 
 @Composable
 fun MainNavigation() {
@@ -43,9 +45,16 @@ fun MainNavigation() {
         }
     } else {
         val coroutineScope = rememberCoroutineScope()
+        val teamViewModel: TeamViewModel = koinViewModel()
+        
         MainScaffold(
             sessionState = sessionState,
             onTeamSelect = { sessionManager.setActiveTeam(it) },
+            onCreateTeam = { name, category -> teamViewModel.createTeam(name, category) },
+            onDeleteTeam = { teamId -> 
+                teamViewModel.deleteTeamById(teamId) 
+                coroutineScope.launch { sessionManager.setActiveTeam("") } // Clear active team safely
+            },
             onLogout = { coroutineScope.launch { sessionManager.logout() } }
         ) { paddingValues ->
             if (sessionState.activeTeam == null) {
@@ -77,18 +86,17 @@ fun MainNavigation() {
                     }
 
                     composable("teams") {
-                        com.example.noubasketalzira.feature.teams.ui.TeamScreen(
-                            onNavigateToTeamDetail = { teamId -> navController.navigate("teamDetail/$teamId") },
-                            onBack = { navController.popBackStack() }
-                        )
-                    }
-
-                    composable("teamDetail/{teamId}") { backStackEntry ->
-                        val teamId = backStackEntry.arguments?.getString("teamId") ?: ""
-                        com.example.noubasketalzira.feature.teams.ui.TeamDetailScreen(
-                            teamId = teamId,
-                            onBack = { navController.popBackStack() }
-                        )
+                        val activeTeam = sessionState.activeTeam
+                        if (activeTeam != null) {
+                            com.example.noubasketalzira.feature.teams.ui.TeamDetailScreen(
+                                teamId = activeTeam.teamId,
+                                onBack = { navController.popBackStack() }
+                            )
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Selecciona un equipo primero")
+                            }
+                        }
                     }
 
                     composable("users") {

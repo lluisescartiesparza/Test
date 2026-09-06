@@ -62,9 +62,9 @@ class TeamViewModel(
         }
     }
 
-    fun deleteTeam(team: Team) {
+    fun deleteTeamById(teamId: String) {
         viewModelScope.launch {
-            teamRepository.deleteTeam(team.id)
+            teamRepository.deleteTeam(teamId)
         }
     }
 
