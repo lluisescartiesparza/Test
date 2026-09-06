@@ -46,6 +46,16 @@ class UserManagementViewModel(
         }
     }
 
+    fun updateUser(userId: String, email: String, fullName: String, role: UserRole) {
+        viewModelScope.launch {
+            try {
+                userRepository.updateUser(userId, email, fullName, role)
+            } catch (e: Exception) {
+                _error.value = "Error al actualizar el usuario."
+            }
+        }
+    }
+
     fun deleteUser(userId: String) {
         viewModelScope.launch {
             try {

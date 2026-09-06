@@ -6,11 +6,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.noubasketalzira.core.domain.model.User
 import com.example.noubasketalzira.core.domain.model.UserRole
 import org.koin.androidx.compose.koinViewModel
 
@@ -24,6 +26,7 @@ fun UserManagementScreen(
     val error by viewModel.error.collectAsState()
     
     var showCreateDialog by remember { mutableStateOf(false) }
+    var userToEdit by remember { mutableStateOf<User?>(null) }
     var newEmail by remember { mutableStateOf("") }
     var newName by remember { mutableStateOf("") }
     var selectedRole by remember { mutableStateOf(UserRole.JUGADOR) }
@@ -40,7 +43,13 @@ fun UserManagementScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showCreateDialog = true }) {
+            FloatingActionButton(onClick = {
+                userToEdit = null
+                newName = ""
+                newEmail = ""
+                selectedRole = UserRole.JUGADOR
+                showCreateDialog = true
+            }) {
                 Icon(Icons.Default.Add, contentDescription = "Añadir Usuario")
             }
         }
@@ -66,7 +75,8 @@ fun UserManagementScreen(
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(users) { user ->
                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -77,7 +87,7 @@ fun UserManagementScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(text = user.fullName, style = MaterialTheme.typography.titleMedium)
                                 Text(text = user.email, style = MaterialTheme.typography.bodyMedium)
                                 Text(
@@ -86,8 +96,19 @@ fun UserManagementScreen(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                            IconButton(onClick = { viewModel.deleteUser(user.id) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                            Row {
+                                IconButton(onClick = { 
+                                    newName = user.fullName
+                                    newEmail = user.email
+                                    selectedRole = user.role
+                                    userToEdit = user
+                                    showCreateDialog = true
+                                }) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Editar")
+                                }
+                                IconButton(onClick = { viewModel.deleteUser(user.id) }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                                }
                             }
                         }
                     }
@@ -98,7 +119,7 @@ fun UserManagementScreen(
         if (showCreateDialog) {
             AlertDialog(
                 onDismissRequest = { showCreateDialog = false },
-                title = { Text("Añadir Usuario") },
+                title = { Text(if (userToEdit == null) "Añadir Usuario" else "Editar Usuario") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
@@ -150,12 +171,16 @@ fun UserManagementScreen(
                     Button(
                         onClick = {
                             if (newEmail.isNotBlank() && newName.isNotBlank()) {
-                                viewModel.createUser(newEmail, newName, selectedRole)
+                                if (userToEdit != null) {
+                                    viewModel.updateUser(userToEdit!!.id, newEmail, newName, selectedRole)
+                                } else {
+                                    viewModel.createUser(newEmail, newName, selectedRole)
+                                }
                                 showCreateDialog = false
                             }
                         }
                     ) {
-                        Text("Crear")
+                        Text(if (userToEdit == null) "Crear" else "Guardar")
                     }
                 },
                 dismissButton = {

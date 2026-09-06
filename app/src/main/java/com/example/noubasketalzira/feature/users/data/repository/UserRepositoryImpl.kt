@@ -51,6 +51,23 @@ class UserRepositoryImpl(
         }
     }
 
+    override suspend fun updateUser(userId: String, email: String, fullName: String, role: UserRole) {
+        withContext(Dispatchers.IO) {
+            val dto = UserDto(
+                id = userId,
+                email = email,
+                full_name = fullName,
+                role = role.name
+            )
+            
+            supabase.postgrest["users"].update(dto) {
+                filter { eq("id", userId) }
+            }
+            
+            syncUsers()
+        }
+    }
+
     override suspend fun deleteUser(userId: String) {
         withContext(Dispatchers.IO) {
             supabase.postgrest["users"].delete {
