@@ -8,6 +8,8 @@ interface ITeamRepository {
     suspend fun createTeam(name: String, category: String)
     suspend fun deleteTeam(teamId: String)
     suspend fun assignMember(teamId: String, userId: String, role: com.example.noubasketalzira.feature.teams.domain.model.TeamRole)
+    suspend fun removeMember(teamId: String, userId: String)
+    fun observeTeamMembers(teamId: String): Flow<List<com.example.noubasketalzira.feature.teams.domain.model.TeamMember>>
     
     // Remote sync
     suspend fun syncTeams()

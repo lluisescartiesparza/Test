@@ -41,7 +41,7 @@ class LoginViewModel(
 
     fun requestOtp(email: String) {
         if (email.isBlank()) {
-            _uiState.update { it.copy(error = "Introduce tu email para recuperar la contrasea") }
+            _uiState.update { it.copy(error = "Introduce tu email para recuperar la contraseña") }
             return
         }
         viewModelScope.launch {
@@ -50,12 +50,17 @@ class LoginViewModel(
                 authDataSource.sendOtp(email)
                 _uiState.update { it.copy(isLoading = false, otpSentTo = email) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error enviando correo. Comprueba la direccin.") }
+                android.util.Log.e("NouBasketAuth", "Error sending OTP", e)
+                _uiState.update { it.copy(isLoading = false, error = "Error: ${e.message ?: "Comprueba la dirección"}") }
             }
         }
     }
 
     fun dismissError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearOtpSent() {
+        _uiState.update { it.copy(otpSentTo = null) }
     }
 }

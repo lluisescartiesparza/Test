@@ -43,6 +43,22 @@ class TeamLocalDataSourceImpl(
         )
     }
 
+    override suspend fun deleteTeamMember(teamId: String, userId: String) {
+        teamMemberDao.deleteTeamMember(teamId, userId)
+    }
+
+    override fun observeTeamMembers(teamId: String): Flow<List<com.example.noubasketalzira.feature.teams.domain.model.TeamMember>> {
+        return teamMemberDao.observeMembersByTeamId(teamId).map { entities ->
+            entities.map {
+                com.example.noubasketalzira.feature.teams.domain.model.TeamMember(
+                    teamId = it.teamId,
+                    userId = it.userId,
+                    role = com.example.noubasketalzira.feature.teams.domain.model.TeamRole.valueOf(it.role)
+                )
+            }
+        }
+    }
+
     override suspend fun insertUser(id: String, email: String, fullName: String, role: String) {
         userDao.insertUser(
             com.example.noubasketalzira.core.data.local.entity.UserEntity(

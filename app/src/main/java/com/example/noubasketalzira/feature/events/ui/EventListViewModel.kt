@@ -12,6 +12,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+
 import com.example.noubasketalzira.feature.events.domain.usecase.GenerateEventsReportUseCase
 
 data class EventListState(
@@ -24,11 +33,13 @@ data class EventListState(
 )
 
 class EventListViewModel(
-    private val teamId: String,
+    initialTeamId: String,
     private val repository: IEventRepository,
     private val sessionManager: ISessionManager,
     private val generateReportUseCase: GenerateEventsReportUseCase
 ) : ViewModel() {
+
+    private val _teamId = MutableStateFlow(initialTeamId)
 
     private val _uiState = MutableStateFlow(EventListState())
     val uiState: StateFlow<EventListState> = _uiState
@@ -43,19 +54,28 @@ class EventListViewModel(
                         teamRole == "ENTRENADOR"
         _uiState.update { it.copy(canManageEvents = canManage) }
         
+        @OptIn(ExperimentalCoroutinesApi::class)
+        _teamId.flatMapLatest { id -> repository.observeEvents(id) }
+            .onEach { events -> _uiState.update { it.copy(events = events) } }
+            .launchIn(viewModelScope)
+            
+        @OptIn(ExperimentalCoroutinesApi::class)
+        _teamId.flatMapLatest { id -> 
+            kotlinx.coroutines.flow.flow { emit(repository.hasPlayers(id)) }
+        }
+            .onEach { playersExist -> _uiState.update { it.copy(hasPlayers = playersExist) } }
+            .launchIn(viewModelScope)
+            
         viewModelScope.launch {
-            repository.observeEvents(teamId).collect { events ->
-                _uiState.update { it.copy(events = events) }
+            _teamId.collect { id ->
+                repository.syncEvents(id)
             }
         }
-        
-        viewModelScope.launch {
-            val playersExist = repository.hasPlayers(teamId)
-            _uiState.update { it.copy(hasPlayers = playersExist) }
-        }
-        
-        viewModelScope.launch {
-            repository.syncEvents(teamId)
+    }
+    
+    fun setTeamId(newTeamId: String) {
+        if (_teamId.value != newTeamId) {
+            _teamId.value = newTeamId
         }
     }
 
@@ -66,7 +86,7 @@ class EventListViewModel(
                     _uiState.update { it.copy(error = "No hay jugadores en el equipo. Añade jugadores primero.") }
                     return@launch
                 }
-                repository.createEvent(teamId, type, date, description)
+                repository.createEvent(_teamId.value, type, date, description)
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = e.message) }
             }
@@ -96,7 +116,7 @@ class EventListViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isGeneratingReport = true, showReportDialog = false) }
             try {
-                generateReportUseCase(teamId, format, eventType, fromDateMillis, toDateMillis)
+                generateReportUseCase(_teamId.value, format, eventType, fromDateMillis, toDateMillis)
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = "Error al generar informe: ${e.localizedMessage}") }
             } finally {

@@ -22,6 +22,7 @@ fun LoginScreen(
     LaunchedEffect(uiState.otpSentTo) {
         uiState.otpSentTo?.let { 
             onNavigateToOtp(it)
+            viewModel.clearOtpSent()
         }
     }
 

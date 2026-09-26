@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 interface IUserRepository {
     fun observeUsers(): Flow<List<User>>
     suspend fun createUser(email: String, fullName: String, role: UserRole)
+    suspend fun updateUser(userId: String, email: String, fullName: String, role: UserRole)
     suspend fun deleteUser(userId: String)
     suspend fun syncUsers()
 }

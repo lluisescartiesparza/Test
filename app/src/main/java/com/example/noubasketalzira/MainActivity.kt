@@ -10,13 +10,38 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.example.noubasketalzira.theme.NouBasketAlziraTheme
 
-class MainActivity : ComponentActivity() {
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
+import android.content.Intent
+import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.handleDeeplinks
+import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
 
-    enableEdgeToEdge()
-    setContent {
-      NouBasketAlziraTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { MainNavigation() } }
+class MainActivity : ComponentActivity() {
+    private val supabase: SupabaseClient by inject()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        supabase.handleDeeplinks(intent)
+
+        enableEdgeToEdge()
+        setContent {
+            NouBasketAlziraTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    MainNavigation()
+                }
+            }
+        }
     }
-  }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        supabase.handleDeeplinks(intent)
+    }
 }
