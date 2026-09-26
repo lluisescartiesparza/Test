@@ -19,7 +19,7 @@ class AndroidReportExporter(
     override suspend fun exportPdf(documentTitle: String, tables: List<ReportTable>): String {
         return withContext(Dispatchers.IO) {
             val document = PdfDocument()
-            val pageInfo = PdfDocument.PageInfo.Builder(842, 595, 1).create() // A4 Landscape
+            val pageInfo = PdfDocument.PageInfo.Builder(842, 595, 1).create()
             
             var page = document.startPage(pageInfo)
             var canvas = page.canvas
@@ -51,13 +51,12 @@ class AndroidReportExporter(
                     currentY = 50f
                 }
                 
-                // Draw Title
                 if (table.title.isNotBlank()) {
-                    canvas.drawText(table.title, marginX, currentY, titlePaint)
-                    currentY += 40f
+                    val addedHeight = drawMultilineText(table.title, marginX, currentY, titlePaint)
+                    currentY += addedHeight + 20f
                 }
 
-                val colsCount = table.headers.size.coerceAtLeast(1)
+                val colsCount = table.headers.size.coerceAtLeast(table.rows.maxOfOrNull { it.size } ?: 1)
                 val dynamicTextSize = if (colsCount > 5) 8f else 10f
                 
                 val headerPaint = Paint().apply {
@@ -72,25 +71,24 @@ class AndroidReportExporter(
                 }
                 val sectionPaint = Paint().apply {
                     color = Color.BLACK
-                    textSize = dynamicTextSize + 1f
+                    textSize = dynamicTextSize + 2f
                     isFakeBoldText = true
                 }
                 
-                val columnWidths = calculateColumnWidths(table.headers, table.rows, 742f)
+                val columnWidths = calculateColumnWidths(colsCount, 742f)
                 
-                // Draw Headers
-                var currentX = marginX
-                var maxHeaderHeight = 0f
-                table.headers.forEachIndexed { index, header ->
-                    val addedHeight = drawMultilineText(header, currentX, currentY, headerPaint)
-                    if (addedHeight > maxHeaderHeight) maxHeaderHeight = addedHeight
-                    currentX += columnWidths.getOrElse(index) { 100f }
+                if (table.headers.isNotEmpty()) {
+                    var currentX = marginX
+                    var maxHeaderHeight = 0f
+                    table.headers.forEachIndexed { index, header ->
+                        val addedHeight = drawMultilineText(header, currentX, currentY, headerPaint)
+                        if (addedHeight > maxHeaderHeight) maxHeaderHeight = addedHeight
+                        currentX += columnWidths.getOrElse(index) { 100f }
+                    }
+                    currentY += maxHeaderHeight + 20f
                 }
-                currentY += maxHeaderHeight + 20f
                 
-                // Draw Rows
                 table.rows.forEach { row ->
-                    // Check if we need a new page
                     if (currentY > 550f) {
                         document.finishPage(page)
                         page = document.startPage(pageInfo)
@@ -98,10 +96,9 @@ class AndroidReportExporter(
                         currentY = 50f
                     }
                     
-                    currentX = marginX
+                    var currentX = marginX
                     var maxRowHeight = 0f
                     
-                    // Special case for section headers (row with only 1 element that we want to span, or we just draw it bold)
                     val isSection = row.size == 1 && row[0].startsWith("[SECTION]")
                     
                     if (isSection) {
@@ -110,7 +107,6 @@ class AndroidReportExporter(
                         maxRowHeight = addedHeight
                     } else {
                         row.forEachIndexed { index, cell ->
-                            // if cell starts with [B], draw bold
                             val isBold = cell.startsWith("[B]")
                             val cleanCell = cell.replace("[B]", "").trim()
                             val paintToUse = if (isBold) sectionPaint else textPaint
@@ -123,12 +119,11 @@ class AndroidReportExporter(
                     currentY += maxRowHeight + 20f
                 }
                 
-                currentY += 20f // Margin bottom after table
+                currentY += 10f
             }
             
             document.finishPage(page)
             
-            // Save file
             val file = File(context.cacheDir, "${documentTitle.replace(" ", "_")}_${System.currentTimeMillis()}.pdf")
             val outputStream = FileOutputStream(file)
             document.writeTo(outputStream)
@@ -147,12 +142,8 @@ class AndroidReportExporter(
         }
     }
     
-    private fun calculateColumnWidths(headers: List<String>, rows: List<List<String>>, availableWidth: Float): List<Float> {
-        val colsCount = headers.size
+    private fun calculateColumnWidths(colsCount: Int, availableWidth: Float): List<Float> {
         if (colsCount == 0) return emptyList()
-        
-        // As a simple heuristic for the metrics table, if first column is "Métrica", we give it a bit more space.
-        // But evenly distributed is fine for now.
         val defaultWidth = availableWidth / colsCount
         return List(colsCount) { defaultWidth }
     }

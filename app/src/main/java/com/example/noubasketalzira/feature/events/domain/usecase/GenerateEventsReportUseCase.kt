@@ -49,7 +49,7 @@ class GenerateEventsReportUseCase(
         
         fun formatText(text: String, limit: Int = 8): String {
             if (!isPdf) return text
-            return if (text.length > limit) text.substring(0, limit - 1) + "." else text
+            return if (text.length > limit) text.substring(0, limit) else text
         }
         
         val headers = mutableListOf("Evento")
@@ -104,11 +104,8 @@ class GenerateEventsReportUseCase(
         val filePath = if (isPdf) {
             val tables = mutableListOf(eventTable)
             
-            // Build Metrics Table
             val metricsHeaders = mutableListOf("Métrica")
-            metricsHeaders.addAll(headers.drop(1)) // Re-use player headers
-            
-            val metricsRows = mutableListOf<List<String>>()
+            metricsHeaders.addAll(headers.drop(1)) // Re-use player headers, which are already <= 8 chars
             
             fun calculateMetrics(statuses: List<AttendanceStatus>): Map<String, String> {
                 val a = statuses.count { it == AttendanceStatus.ASISTENCIA }
@@ -120,18 +117,18 @@ class GenerateEventsReportUseCase(
                 val faltas = j + na
                 val asistenciasEfectivas = a + r
                 
-                val resFaltas = if (convocatorias == 0) "SIN ASISTENCIA" 
-                    else "${faltas}/${convocatorias} (${(faltas*100)/convocatorias}%)"
+                val resFaltas = if (convocatorias == 0) "SIN\nASIST." 
+                    else "${faltas}/${convocatorias}\n(${(faltas*100)/convocatorias}%)"
                     
-                val resJustificadas = if (faltas == 0) "SIN FALTAS"
-                    else "${j}/${faltas} (${(j*100)/faltas}%)"
+                val resJustificadas = if (faltas == 0) "SIN\nFALTAS"
+                    else "${j}/${faltas}\n(${(j*100)/faltas}%)"
                     
-                val resRetrasos = if (asistenciasEfectivas == 0) "SIN ASISTENCIA"
-                    else "${r}/${asistenciasEfectivas} (${(r*100)/asistenciasEfectivas}%)"
+                val resRetrasos = if (asistenciasEfectivas == 0) "SIN\nASIST."
+                    else "${r}/${asistenciasEfectivas}\n(${(r*100)/asistenciasEfectivas}%)"
                     
                 return mapOf(
                     "Faltas" to resFaltas,
-                    "Justificadas" to resJustificadas,
+                    "Justifi." to resJustificadas,
                     "Retrasos" to resRetrasos
                 )
             }
@@ -142,12 +139,14 @@ class GenerateEventsReportUseCase(
                 "Totales" to null
             )
             
+            var isFirstSection = true
+            
             for ((sectionName, sectionType) in sections) {
-                // Section Header
-                metricsRows.add(listOf("[SECTION] $sectionName"))
+                // For each section, we want a section header and then the metrics with the player headers inside
+                val sectionRows = mutableListOf<List<String>>()
                 
                 val faltasRow = mutableListOf("[B] Faltas")
-                val justificadasRow = mutableListOf("[B] Justificadas")
+                val justificadasRow = mutableListOf("[B] Justifi.")
                 val retrasosRow = mutableListOf("[B] Retrasos")
                 
                 for (player in sortedPlayers) {
@@ -160,39 +159,25 @@ class GenerateEventsReportUseCase(
                     
                     val metrics = calculateMetrics(playerStatuses)
                     
-                    // We must abbreviate these too if they are long?
-                    // But metrics are like "0/1 (0%)" which is 8-10 chars. Let's just output them directly.
-                    // Oh, wait, "SIN ASISTENCIA" is 14 chars. 
-                    // Let's use formatText for "SIN ASISTENCIA" so it fits in the column width, or just let it wrap natively?
-                    // `drawMultilineText` in AndroidReportExporter doesn't wrap natively! It only wraps on explicit '\n'.
-                    // So "SIN ASISTENCIA" might overflow the column. Let's replace "SIN ASISTENCIA" with "SIN\nASISTEN."
-                    // Actually, let's just make it "SIN ASIST." or use `formatText` logic.
-                    // Wait, the user said "mantener los límites de carácteres por columnas".
-                    
-                    fun formatMetric(text: String): String {
-                        if (text == "SIN ASISTENCIA") return "SIN\nASIST."
-                        if (text == "SIN FALTAS") return "SIN\nFALTAS"
-                        return text
-                    }
-                    
-                    faltasRow.add(formatMetric(metrics["Faltas"] ?: ""))
-                    justificadasRow.add(formatMetric(metrics["Justificadas"] ?: ""))
-                    retrasosRow.add(formatMetric(metrics["Retrasos"] ?: ""))
+                    faltasRow.add(metrics["Faltas"] ?: "")
+                    justificadasRow.add(metrics["Justifi."] ?: "")
+                    retrasosRow.add(metrics["Retrasos"] ?: "")
                 }
                 
-                metricsRows.add(faltasRow)
-                metricsRows.add(justificadasRow)
-                metricsRows.add(retrasosRow)
+                sectionRows.add(faltasRow)
+                sectionRows.add(justificadasRow)
+                sectionRows.add(retrasosRow)
+                
+                val sectionTable = ReportTable(
+                    title = if (isFirstSection) "Métricas\n\n$sectionName" else sectionName,
+                    startOnNewPage = isFirstSection,
+                    headers = metricsHeaders,
+                    rows = sectionRows
+                )
+                
+                tables.add(sectionTable)
+                isFirstSection = false
             }
-            
-            val metricsTable = ReportTable(
-                title = "Métricas",
-                startOnNewPage = true,
-                headers = metricsHeaders,
-                rows = metricsRows
-            )
-            
-            tables.add(metricsTable)
             
             exporter.exportPdf(title, tables)
         } else {
