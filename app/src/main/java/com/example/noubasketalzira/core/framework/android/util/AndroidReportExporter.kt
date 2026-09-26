@@ -1,4 +1,4 @@
-﻿package com.example.noubasketalzira.core.framework.android.util
+package com.example.noubasketalzira.core.framework.android.util
 
 import android.content.Context
 import android.graphics.Canvas
@@ -69,9 +69,14 @@ class AndroidReportExporter(
                     color = Color.DKGRAY
                     textSize = dynamicTextSize
                 }
+                val subSectionPaint = Paint().apply {
+                    color = Color.BLACK
+                    textSize = dynamicTextSize + 1f
+                    isFakeBoldText = true
+                }
                 val sectionPaint = Paint().apply {
                     color = Color.BLACK
-                    textSize = dynamicTextSize + 2f
+                    textSize = dynamicTextSize + 3f
                     isFakeBoldText = true
                 }
                 
@@ -109,7 +114,7 @@ class AndroidReportExporter(
                         row.forEachIndexed { index, cell ->
                             val isBold = cell.startsWith("[B]")
                             val cleanCell = cell.replace("[B]", "").trim()
-                            val paintToUse = if (isBold) sectionPaint else textPaint
+                            val paintToUse = if (isBold) subSectionPaint else textPaint
                             
                             val addedHeight = drawMultilineText(cleanCell, currentX, currentY, paintToUse)
                             if (addedHeight > maxRowHeight) maxRowHeight = addedHeight
